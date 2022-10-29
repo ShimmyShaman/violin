@@ -20,6 +20,10 @@ Rect :: struct {
   h: i32,
 }
 
+Rectf :: struct {
+  x, y, width, height: f32,
+}
+
 Color :: struct {
   r: u8,
   g: u8,
@@ -269,7 +273,7 @@ stamp_begin :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResourc
 //   return .Success
 // }
 
-stamp_colored_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResourceHandle, rect: ^Rect, color: ^Color) -> Error {
+stamp_colored_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResourceHandle, rect: ^Rectf, color: ^Color) -> Error {
   // Obtain the resources
   stampr: ^StampRenderResource = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stamp_handle) or_return
   vbuf: ^VertexBuffer = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stampr.colored_rect_vertex_buffer) or_return
@@ -278,10 +282,10 @@ stamp_colored_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRender
 
   // Write the input to the uniform buffer
   parameter_data := [8]f32 {
-    auto_cast rect.x / cast(f32)rctx.ctx.swap_chain.extent.width,
-    auto_cast rect.y / cast(f32)rctx.ctx.swap_chain.extent.height,
-    auto_cast rect.w / cast(f32)rctx.ctx.swap_chain.extent.width,
-    auto_cast rect.h / cast(f32)rctx.ctx.swap_chain.extent.height,
+    rect.x / cast(f32)rctx.ctx.swap_chain.extent.width,
+    rect.y / cast(f32)rctx.ctx.swap_chain.extent.height,
+    rect.width / cast(f32)rctx.ctx.swap_chain.extent.width,
+    rect.height / cast(f32)rctx.ctx.swap_chain.extent.height,
     auto_cast color.r / 255.0,
     auto_cast color.g / 255.0,
     auto_cast color.b / 255.0,
@@ -383,7 +387,7 @@ stamp_colored_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRender
 }
 
 stamp_textured_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResourceHandle, txh: TextureResourceHandle,
-  rect: ^Rect, tint: ^Color = nil, sub_uv_coords: [4]f32 = {0.0, 0.0, 1.0, 1.0}) -> Error {
+  rect: ^Rectf, tint: ^Color = nil, sub_uv_coords: [4]f32 = {0.0, 0.0, 1.0, 1.0}) -> Error {
   // Obtain the resources
   stampr: ^StampRenderResource = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stamp_handle) or_return
   texture: ^Texture = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast txh) or_return
@@ -398,10 +402,10 @@ stamp_textured_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRende
   }
   PARAM_COUNT :: 12
   parameter_data := [PARAM_COUNT]f32 {
-    auto_cast rect.x / cast(f32)rctx.ctx.swap_chain.extent.width,
-    auto_cast rect.y / cast(f32)rctx.ctx.swap_chain.extent.height,
-    auto_cast rect.w / cast(f32)rctx.ctx.swap_chain.extent.width,
-    auto_cast rect.h / cast(f32)rctx.ctx.swap_chain.extent.height,
+    rect.x / cast(f32)rctx.ctx.swap_chain.extent.width,
+    rect.y / cast(f32)rctx.ctx.swap_chain.extent.height,
+    rect.width / cast(f32)rctx.ctx.swap_chain.extent.width,
+    rect.height / cast(f32)rctx.ctx.swap_chain.extent.height,
     auto_cast tint_.r / 255.0,
     auto_cast tint_.g / 255.0,
     auto_cast tint_.b / 255.0,
@@ -531,6 +535,7 @@ stamp_textured_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRende
 // vi.stamp_text(rctx, handle_2d, cmd_t.font, cmd_t.text, cmd_t.pos.x, cmd_t.pos.y, cmd_t.color)
 stamp_text :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResourceHandle, font_handle: FontResourceHandle,
   text: string, #any_int pos_x: int, #any_int pos_y: int, color: ^Color) -> Error {
+  fmt.println("stamp_text:", text, "pos_x:", pos_x, "pos_y:", pos_y, "color:", color)
   // Text Length
   text_length := len(text)
   if text_length == 0 do return .Success
@@ -544,7 +549,7 @@ stamp_text :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResource
 
   letter: u8
   clip: vk.Rect2D
-  cc: ^Rect
+  cc: ^Rectf
   q: stbtt.aligned_quad
   width, height, scale_multiplier: f32
 
@@ -570,7 +575,7 @@ stamp_text :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResource
       &align_x, &align_y, &q, true)
     // TODO -- opengl_fill_rule??? // 1=opengl & d3d10+,0=d3d9 -- should be true, nothing on net about it
   
-    rect: Rect = {auto_cast q.x0, auto_cast q.y0, auto_cast (q.x1 - q.x0), auto_cast (q.y1 - q.y0)}
+    rect: Rectf = {q.x0, q.y0, (q.x1 - q.x0), (q.y1 - q.y0)}
     // fmt.println("letter:", letter, "rect:", rect, "q.s0:", q.s0, "q.t0:", q.t0, "q.s1:", q.s1, "q.t1:", q.t1)
     stamp_textured_rect(rctx, stamp_handle, font.texture, &rect, color, {q.s0, q.t0, q.s1, q.t1})
 

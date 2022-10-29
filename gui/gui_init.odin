@@ -6,25 +6,21 @@ import vi "../../violin"
 
 ControlType :: enum {
   GUIRoot = 1,
-  Label,
+  Label = 100,
   Button,
   Textbox,
 }
 
 HorizontalAlignment :: enum {
-  Left = 1,
+  Left,
   Centred,
   Right,
 }
 
 VerticalAlignment :: enum {
-  Top = 1,
+  Top,
   Centred,
   Bottom,
-}
-
-Rectf :: struct {
-  x, y, width, height: f32,
 }
 
 Extent :: struct {
@@ -56,7 +52,7 @@ _ControlInfo :: struct {
   parent: ^_ParentControlInfo,
   visible: bool,
 
-  bounds: Rectf,
+  bounds: vi.Rectf,
 }
 
 _ParentControlInfo :: struct {
@@ -66,12 +62,15 @@ _ParentControlInfo :: struct {
 
 GUIRoot :: struct {
   using _pcnfo: _ParentControlInfo,
+
+  default_font: vi.FontResourceHandle,
 }
 
 Label :: struct {
   using _ctrlnfo: _ControlInfo,
 
   text: string,
+  font: vi.FontResourceHandle,
   font_color: vi.Color,
   background_color: vi.Color,
   clip_text_to_bounds: bool,
@@ -93,13 +92,27 @@ Control :: struct #raw_union {
   textbox: Textbox,
 }
 
-create_gui_root :: proc(ctx: ^vi.Context) -> (gui_root: ^GUIRoot, err: vi.Error) {
+when ODIN_OS == .Windows {
+  DEFAULT_FONT_PATH :: "C:/Windows/Fonts/arial.ttf"
+}
+when ODIN_OS == .Linux {
+  DEFAULT_FONT_PATH :: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+}
+when ODIN_OS == .Darwin {
+  DEFAULT_FONT_PATH :: "/Library/Fonts/Arial.ttf"
+}
+
+create_gui_root :: proc(ctx: ^vi.Context, default_font_path: string = DEFAULT_FONT_PATH) -> (gui_root: ^GUIRoot, err: vi.Error) {
+  fh := vi.load_font(ctx, default_font_path, 16) or_return
+
   gui_root = new(GUIRoot)
   
   gui_root.ctype = .GUIRoot
   gui_root.id = "GUIRoot"
   gui_root.parent = nil
   gui_root.visible = true
+
+  gui_root.default_font = fh
 
   gui_root.bounds.x = 0.0
   gui_root.bounds.y = 0.0
@@ -111,13 +124,15 @@ create_gui_root :: proc(ctx: ^vi.Context) -> (gui_root: ^GUIRoot, err: vi.Error)
   return
 }
 
-@(private) _destroy_control :: proc(control: rawptr) {
+@(private) _destroy_control :: proc(ctx: ^vi.Context, control: rawptr) {
   #partial switch (cast(^_ControlInfo)control).ctype {
     case .GUIRoot:
       gui_root: ^GUIRoot = auto_cast control
       for child in gui_root.children {
-        _destroy_control(child)
+        _destroy_control(ctx, child)
       }
+      vi.destroy_font(ctx, gui_root.default_font)
+      mem.free(control)
     case:
       fmt.println("Unsupported control type:", (cast(^_ControlInfo)control).ctype)
     case .Label:
@@ -130,8 +145,8 @@ create_gui_root :: proc(ctx: ^vi.Context) -> (gui_root: ^GUIRoot, err: vi.Error)
   }
 }
 
-destroy_gui :: proc(gui_root: ^^GUIRoot) {
-  _destroy_control(gui_root^)
+destroy_gui :: proc(ctx: ^vi.Context, gui_root: ^^GUIRoot) {
+  _destroy_control(ctx, gui_root^)
   gui_root^ = nil
 }
 
@@ -168,17 +183,24 @@ create_label :: proc(parent: rawptr, name_id: string = "label") -> (label: ^Labe
   label.parent = auto_cast parent
   append(&(cast(^_ParentControlInfo)parent).children, auto_cast label)
   label.visible = true
-  label.bounds = Rectf{0.0, 0.0, 80.0, 20.0}
+  // label.bounds = vi.Rectf{0.0, 0.0, 80.0, 20.0}
   // label.bounds.left = 0.0
   // label.bounds.top = 0.0
   // label.bounds.right = 80.0
   // label.bounds.bottom = 20.0
 
+  // Default Settings
+  label._layout.min_width = 10;
+  label._layout.min_height = 24;
+
   // Set the label info
   label.text = "Label"
+  label.font = gui_root.default_font
   label.font_color = vi.Color{1.0, 1.0, 1.0, 1.0}
   label.background_color = vi.Color{0.0, 0.0, 0.0, 0.0}
   label.clip_text_to_bounds = false
+
+  // label._layout.requires_layout_update = true
 
   return
 }
