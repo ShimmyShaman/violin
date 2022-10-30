@@ -1,4 +1,4 @@
-package violin
+package graphics
 
 import "core:fmt"
 import "core:os"
@@ -12,7 +12,7 @@ import "core:time"
 import "vendor:sdl2"
 import vk "vendor:vulkan"
 
-import vma "../deps/odin-vma"
+import vma "violin:odin-vma"
 
 foreign import alibc "system:c"
 @(default_calling_convention="c")

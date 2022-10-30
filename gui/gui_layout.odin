@@ -5,7 +5,7 @@ import "core:mem"
 
 import "vendor:sdl2"
 
-import vi "../../violin"
+import vi "violin:vsr"
 
 LayoutExtentRestraints :: distinct bit_set[LayoutExtentRestraint; u8]
 LayoutExtentRestraint :: enum(u8) {
@@ -20,6 +20,8 @@ handle_gui_event :: proc(gui: ^GUIRoot, event: ^sdl2.Event) -> (handled: bool, e
 update_gui :: proc(gui_root: ^GUIRoot) {
   if gui_root.children == nil do return
 
+  _determine_control_and_children_extents(auto_cast gui_root, {})
+
   // Update the layout of each child
   for child in gui_root.children {
     _update_control_layout(child, gui_root.bounds)
@@ -31,6 +33,8 @@ update_gui :: proc(gui_root: ^GUIRoot) {
 mca_determine_control_extents :: proc(control: ^Control, restraints: LayoutExtentRestraints) {
   MAX_EXTENT_VALUE :: 1000000
   layout := &control._layout
+
+  fmt.println("Determine extents for control: ", control._info)
 
   // Width
   if layout.preferred_width != 0 {
@@ -97,38 +101,21 @@ mca_determine_control_extents :: proc(control: ^Control, restraints: LayoutExten
   }
 }
 
-// int mca_determine_typical_node_extents(mc_node *node, layout_extent_restraints restraints)
-// {
-//   // DEBUG
-//   // Ensure only that which is updated gets called
-//   // printf("ExtentsDet:'");
-//   // mc_print_node_name(node);
-//   // printf("'\n");
-//   // DEBUG
-
-//   MCcall(mca_determine_typical_node_extents_halt_propagation(node, restraints));
-
-//   // Children
-//   if (node->children) {
-//     for (int a = 0; a < node->children->count; ++a) {
-//       mc_node *child = node->children->items[a];
-//       if (child->layout && child->layout->determine_layout_extents) {
-//         // TODO fptr casting
-//         void (*determine_layout_extents)(mc_node *, layout_extent_restraints) =
-//             (void (*)(mc_node *, layout_extent_restraints))child->layout->determine_layout_extents;
-//         determine_layout_extents(child, LAYOUT_RESTRAINT_NONE); // TODO -- does a child inherit its parents restraints?
-//       }
-//     }
-//   }
-
-//   return 0;
-// }
 _determine_control_and_children_extents :: proc(control: ^Control, restraints: LayoutExtentRestraints) {
   mca_determine_control_extents(control, restraints)
 
-  // Children
-  if control.children != nil {
-    for child in control.children {
+  // Containers
+  if .Container not_in control.properties do return 
+  
+  container: ^_ContainerControlInfo = auto_cast control
+  if container.children == nil do return
+
+  // Foreach container child
+  for child in container.children {
+    if .TextRestrained in child.properties {
+      _determine_text_restrained_control_and_children_extents(child, restraints)
+    }
+    else {
       _determine_control_and_children_extents(child, restraints)
     }
   }
@@ -233,7 +220,7 @@ _update_control_layout :: proc(control: ^Control, available_area: vi.Rectf, upda
     case .Button, .Label, .Textbox:
       return
     case .GUIRoot: // TODO -- GUIRoot should not be passed to this method, place it here till another container control is created
-      as_parent: ^_ParentControlInfo = cast(^_ParentControlInfo)control
+      as_parent: ^_ContainerControlInfo = cast(^_ContainerControlInfo)control
       if as_parent.children != nil {
         for child in as_parent.children {
           fmt.println("Updating child: ", child)

@@ -5,14 +5,14 @@ import "core:mem"
 
 import "vendor:sdl2"
 
-import vi "../../violin"
+import vi "violin:vsr"
 
 render_gui :: proc(using rctx: ^vi.RenderContext, stamprr: vi.StampRenderResourceHandle, gui_root: ^GUIRoot) -> vi.Error {
   // Update the layout of each child
   return _render_container_control(rctx, stamprr, gui_root)
 }
 
-_render_container_control :: proc(using rctx: ^vi.RenderContext, stamprr: vi.StampRenderResourceHandle, container: ^_ParentControlInfo) -> (err: vi.Error) {
+_render_container_control :: proc(using rctx: ^vi.RenderContext, stamprr: vi.StampRenderResourceHandle, container: ^_ContainerControlInfo) -> (err: vi.Error) {
   if container.children == nil do return
 
   for child in container.children {

@@ -2,13 +2,20 @@ package violin_gui
 
 import "core:fmt"
 import "core:mem"
-import vi "../../violin"
+
+import vi "violin:vsr"
 
 ControlType :: enum {
   GUIRoot = 1,
   Label = 100,
   Button,
   Textbox,
+}
+
+ControlProperties :: distinct bit_set[ControlProperty, u8]
+ControlProperty :: enum(u8) {
+  Container,
+  TextRestrained,
 }
 
 HorizontalAlignment :: enum {
@@ -49,19 +56,20 @@ _ControlInfo :: struct {
   ctype: ControlType,
   _layout: _ControlLayout,
   id: string,
-  parent: ^_ParentControlInfo,
+  parent: ^_ContainerControlInfo,
   visible: bool,
+  properties: ControlProperties,
 
   bounds: vi.Rectf,
 }
 
-_ParentControlInfo :: struct {
+_ContainerControlInfo :: struct {
   using _ctrlnfo: _ControlInfo,
   children: [dynamic]^Control,
 }
 
 GUIRoot :: struct {
-  using _pcnfo: _ParentControlInfo,
+  using _pcnfo: _ContainerControlInfo,
 
   default_font: vi.FontResourceHandle,
 }
@@ -106,11 +114,12 @@ create_gui_root :: proc(ctx: ^vi.Context, default_font_path: string = DEFAULT_FO
   fh := vi.load_font(ctx, default_font_path, 16) or_return
 
   gui_root = new(GUIRoot)
-  
+
   gui_root.ctype = .GUIRoot
   gui_root.id = "GUIRoot"
   gui_root.parent = nil
   gui_root.visible = true
+  gui_root.is_container = true
 
   gui_root.default_font = fh
 
@@ -120,7 +129,7 @@ create_gui_root :: proc(ctx: ^vi.Context, default_font_path: string = DEFAULT_FO
   gui_root.bounds.height = auto_cast ctx.swap_chain.extent.height
 
   // append(ctx.resize_callbacks, resize_callback) // TODO
-  
+
   return
 }
 
@@ -181,7 +190,7 @@ create_label :: proc(parent: rawptr, name_id: string = "label") -> (label: ^Labe
   // TODO parent check
   // _name_control(label, name_id) TODO -- proper name control
   label.parent = auto_cast parent
-  append(&(cast(^_ParentControlInfo)parent).children, auto_cast label)
+  append(&(cast(^_ContainerControlInfo)parent).children, auto_cast label)
   label.visible = true
   // label.bounds = vi.Rectf{0.0, 0.0, 80.0, 20.0}
   // label.bounds.left = 0.0

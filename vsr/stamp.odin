@@ -1,4 +1,4 @@
-package violin
+package graphics
 
 import "core:os"
 import "core:fmt"
@@ -11,7 +11,8 @@ import vk "vendor:vulkan"
 // import stb "vendor:stb/lib"
 import stbi "vendor:stb/image"
 import stbtt "vendor:stb/truetype"
-import vma "../deps/odin-vma"
+
+import vma "violin:odin-vma"
 
 Rect :: struct {
   x: i32,

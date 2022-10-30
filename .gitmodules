@@ -1,0 +1,3 @@
+[submodule "odin-vma"]
+	path = odin-vma
+	url = https://github.com/ShimmyShaman/odin-vma.git
