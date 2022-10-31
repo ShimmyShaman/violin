@@ -144,9 +144,9 @@ StampUniformBuffer :: struct {
 Font :: struct {
   name: string,
   height: f32,
-  draw_vertical_offset: f32,
   texture: TextureResourceHandle,
   char_data: [^]stbtt.bakedchar,
+  bump_up_y_offset, vertical_size: f32,
 }
 
 // TODO -- this is a bit of a hack, but it works for now
@@ -1291,14 +1291,48 @@ load_font :: proc(using ctx: ^Context, ttf_filepath: string, font_height: f32) -
 // }
 // font->draw_vertical_offset = 300 - lowest;
 // }
+  {
+    // low_y0: f32 = 0.0
+    // high_y1: f32 = 0.0
+    // for c in 32..<128 {
+    //   q: stbtt.aligned_quad
+    //   ax: f32 = 100
+    //   ay: f32 = 300
+    //   stbtt.GetBakedQuad(font.char_data, tex_width, tex_height, auto_cast c, &ax, &ay, &q, true)
+    //   fmt.println("c:", cast(rune)c, "y0:", q.y0, "y1:", q.y1)
+    //   // fmt.println("q:", q)
+    //   low_y0 = min(low_y0, q.y0)
+    //   high_y1 = max(high_y1, q.y1)
+    // }
+    // font.bump_up_y_offset = high_y1
+    // font.vertical_size = high_y1 - low_y0
+    // fmt.println("font:", ttf_filepath, "height:", font_height, "vertical_size:", font.vertical_size, "bump_up_y_offset:", font.bump_up_y_offset)
+    // TODO this isn't working for some reason???
+    font.bump_up_y_offset = font_height * 0.2
+    font.vertical_size = font_height
+  }
 
-// *p_resource = font;
-// printf("generated font resource> name:%s height:%.2f resource_uid:%u\n", font_name, font_height,
-// font->texture->resource_uid);
-// }
+  return
+}
 
-// return res;
-  // fmt.println("load_font> NotYetImplemented")
-  // err = .NotYetImplemented
+determine_text_display_dimensions :: proc(using ctx: ^Context, font: FontResourceHandle, text: string) \
+  -> (text_width: f32, text_height: f32, err: Error) {
+  font: ^Font = auto_cast _get_resource(&resource_manager, auto_cast font) or_return
+
+  q: stbtt.aligned_quad
+
+  for c, i in text {
+    if c < auto_cast 32 || c > auto_cast 127 {
+      fmt.println("ERROR: determine_text_display_dimensions> character '%i' not supported.\n", c)
+      continue
+    }
+
+    // TODO -- this method seems inefficient. I'm sure there's a better way to do this.
+    stbtt.GetBakedQuad(font.char_data, 256, 256, auto_cast c - 32, &text_width, &text_height, &q, true)
+    fmt.println("[q] s0:", q.s0, "s1:", q.s1, "t0:", q.t0, "t1:", q.t1, "x0:", q.x0, "x1:", q.x1, "y0:", q.y0, "y1:", q.y1)
+    fmt.println("char:", c, "i:", i, "text_width:", text_width, "text_height:", text_height)
+  }
+
+  text_height = font.vertical_size
   return
 }

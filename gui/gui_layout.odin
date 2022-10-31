@@ -20,7 +20,7 @@ handle_gui_event :: proc(gui: ^GUIRoot, event: ^sdl2.Event) -> (handled: bool, e
 update_gui :: proc(gui_root: ^GUIRoot) {
   if gui_root.children == nil do return
 
-  _determine_control_and_children_extents(auto_cast gui_root, {})
+  _determine_control_and_children_extents(gui_root.vctx, auto_cast gui_root, {})
 
   // Update the layout of each child
   for child in gui_root.children {
@@ -28,13 +28,9 @@ update_gui :: proc(gui_root: ^GUIRoot) {
   }
 }
 
-// int mca_determine_typical_node_extents_halt_propagation(mc_node *node, layout_extent_restraints restraints)
-// {
-mca_determine_control_extents :: proc(control: ^Control, restraints: LayoutExtentRestraints) {
+_determine_control_extents :: proc(control: ^Control, restraints: LayoutExtentRestraints) {
   MAX_EXTENT_VALUE :: 1000000
   layout := &control._layout
-
-  fmt.println("Determine extents for control: ", control._info)
 
   // Width
   if layout.preferred_width != 0 {
@@ -99,10 +95,94 @@ mca_determine_control_extents :: proc(control: ^Control, restraints: LayoutExten
       }
     }
   }
+  fmt.println("Determined extents for control: ", control.ctype, " - ", layout.determined_width_extent, "x", layout.determined_height_extent)
 }
 
-_determine_control_and_children_extents :: proc(control: ^Control, restraints: LayoutExtentRestraints) {
-  mca_determine_control_extents(control, restraints)
+_get_control_text_dimensions :: proc(ctx: ^vi.Context, control: ^Control) -> (width: f32, height: f32, err: vi.Error) {
+  // Obtain the text dimensions
+  text: string
+  font: vi.FontResourceHandle
+  #partial switch control.ctype {
+    case .Label:
+      text = (cast(^Label) control).text
+      font = (cast(^Label) control).font
+    case:
+      fmt.eprintln("ERROR:_determine_text_restrained_control_extents> Unhandled control type:", control.ctype)
+      // TODO - what do now?
+      return
+  }
+  return vi.determine_text_display_dimensions(ctx, font, text)
+}
+
+_determine_text_restrained_control_extents :: proc(ctx: ^vi.Context, control: ^Control, restraints: LayoutExtentRestraints) -> vi.Error {
+  layout := &control._layout
+
+  str_width, str_height := _get_control_text_dimensions(ctx, control) or_return
+  fmt.println("Determined text dimensions for control: ", control.ctype, " - ", str_width, "x", str_height)
+
+  // Width
+  if layout.preferred_width != 0 {
+    // Set to preferred width
+    layout.determined_width_extent = layout.preferred_width
+  }
+  else {
+    if .Horizontal in restraints {
+      layout.determined_width_extent = max(max(layout.min_width, str_width), 0.0)
+    }
+    else {
+      // Padding adjusted from available
+      layout.determined_width_extent = str_width
+
+      // Specified bounds
+      if layout.min_width != 0 && layout.determined_width_extent < layout.min_width {
+        layout.determined_width_extent = layout.min_width
+      }
+      if layout.max_width != 0 && layout.determined_width_extent > layout.max_width {
+        layout.determined_width_extent = layout.max_width
+      }
+
+      if layout.determined_width_extent < 0 {
+        layout.determined_width_extent = 0
+      }
+    }
+  }
+
+  // Height
+  if layout.preferred_height != 0 {
+    // Set to preferred height
+    layout.determined_height_extent = layout.preferred_height
+  }
+  else {
+    if .Vertical in restraints {
+      layout.determined_height_extent = max(max(layout.min_height, str_height), 0.0)
+    }
+    else {
+      // Padding adjusted from available
+      layout.determined_height_extent = str_height
+
+      // Specified bounds
+      if layout.min_height != 0 && layout.determined_height_extent < layout.min_height {
+        layout.determined_height_extent = layout.min_height
+      }
+      if layout.max_height != 0 && layout.determined_height_extent > layout.max_height {
+        layout.determined_height_extent = layout.max_height
+      }
+
+      if layout.determined_height_extent < 0 {
+        layout.determined_height_extent = 0
+      }
+    }
+  }
+
+  return .Success
+}
+
+_determine_control_and_children_extents :: proc(ctx: ^vi.Context, control: ^Control, restraints: LayoutExtentRestraints) {
+  if .TextRestrained in control.properties {
+    _determine_text_restrained_control_extents(ctx, control, restraints)
+  } else {
+    _determine_control_extents(control, restraints)
+  }
 
   // Containers
   if .Container not_in control.properties do return 
@@ -112,12 +192,7 @@ _determine_control_and_children_extents :: proc(control: ^Control, restraints: L
 
   // Foreach container child
   for child in container.children {
-    if .TextRestrained in child.properties {
-      _determine_text_restrained_control_and_children_extents(child, restraints)
-    }
-    else {
-      _determine_control_and_children_extents(child, restraints)
-    }
+    _determine_control_and_children_extents(ctx, child, restraints)
   }
 }
 

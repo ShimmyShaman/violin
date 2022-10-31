@@ -12,7 +12,7 @@ ControlType :: enum {
   Textbox,
 }
 
-ControlProperties :: distinct bit_set[ControlProperty, u8]
+ControlProperties :: distinct bit_set[ControlProperty; u8]
 ControlProperty :: enum(u8) {
   Container,
   TextRestrained,
@@ -71,6 +71,8 @@ _ContainerControlInfo :: struct {
 GUIRoot :: struct {
   using _pcnfo: _ContainerControlInfo,
 
+  // The context this gui is created and rendered in
+  vctx: ^vi.Context,
   default_font: vi.FontResourceHandle,
 }
 
@@ -114,12 +116,13 @@ create_gui_root :: proc(ctx: ^vi.Context, default_font_path: string = DEFAULT_FO
   fh := vi.load_font(ctx, default_font_path, 16) or_return
 
   gui_root = new(GUIRoot)
+  gui_root.vctx = ctx
 
   gui_root.ctype = .GUIRoot
   gui_root.id = "GUIRoot"
   gui_root.parent = nil
   gui_root.visible = true
-  gui_root.is_container = true
+  gui_root.properties = { .Container }
 
   gui_root.default_font = fh
 
@@ -192,6 +195,8 @@ create_label :: proc(parent: rawptr, name_id: string = "label") -> (label: ^Labe
   label.parent = auto_cast parent
   append(&(cast(^_ContainerControlInfo)parent).children, auto_cast label)
   label.visible = true
+
+  label.properties = { .TextRestrained }
   // label.bounds = vi.Rectf{0.0, 0.0, 80.0, 20.0}
   // label.bounds.left = 0.0
   // label.bounds.top = 0.0
@@ -200,7 +205,8 @@ create_label :: proc(parent: rawptr, name_id: string = "label") -> (label: ^Labe
 
   // Default Settings
   label._layout.min_width = 10;
-  label._layout.min_height = 24;
+  label._layout.min_height = 20;
+  label._layout.padding = { 1, 1, 1, 1 }
 
   // Set the label info
   label.text = "Label"
