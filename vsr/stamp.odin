@@ -26,12 +26,80 @@ Rectf :: struct {
 }
 
 Color :: struct {
-  r: u8,
-  g: u8,
-  b: u8,
-  a: u8,
+  r, g, b, a: f32,
 }
-Color_White := Color {r = 255, g = 255, b = 255, a = 255}
+
+// Premade Colors
+COLOR_White := Color {r = 1.0, g = 1.0, b = 1.0, a = 1.0}
+COLOR_WhiteSmoke := Color {r = 0.96, g = 0.96, b = 0.96, a = 1.0}
+COLOR_LightGray := Color {r = 0.75, g = 0.75, b = 0.75, a = 1.0}
+COLOR_Gray := Color {r = 0.5, g = 0.5, b = 0.5, a = 1.0}
+COLOR_DarkGray := Color {r = 0.25, g = 0.25, b = 0.25, a = 1.0}
+COLOR_DimGray := Color {r = 0.17, g = 0.17, b = 0.17, a = 1.0}
+COLOR_Black := Color {r = 0.0, g = 0.0, b = 0.0, a = 1.0}
+COLOR_Red := Color {r = 1.0, g = 0.0, b = 0.0, a = 1.0}
+COLOR_Green := Color {r = 0.0, g = 1.0, b = 0.0, a = 1.0}
+COLOR_Blue := Color {r = 0.0, g = 0.0, b = 1.0, a = 1.0}
+COLOR_Yellow := Color {r = 1.0, g = 1.0, b = 0.0, a = 1.0}
+COLOR_Magenta := Color {r = 1.0, g = 0.0, b = 1.0, a = 1.0}
+COLOR_Cyan := Color {r = 0.0, g = 1.0, b = 1.0, a = 1.0}
+COLOR_Transparent := Color {r = 0.0, g = 0.0, b = 0.0, a = 0.0}
+
+COLOR_Azure := Color {r = 0.0, g = 0.5, b = 1.0, a = 1.0}
+COLOR_Bisque := Color {r = 1.0, g = 0.89, b = 0.77, a = 1.0}
+COLOR_BlanchedAlmond := Color {r = 1.0, g = 0.92, b = 0.8, a = 1.0}
+COLOR_Cornsilk := Color {r = 1.0, g = 0.97, b = 0.86, a = 1.0}
+COLOR_Orange := Color {r = 1.0, g = 0.5, b = 0.0, a = 1.0}
+COLOR_Purple := Color {r = 0.5, g = 0.0, b = 0.5, a = 1.0}
+COLOR_Brown := Color {r = 0.6, g = 0.4, b = 0.2, a = 1.0}
+COLOR_Lime := Color {r = 0.0, g = 1.0, b = 0.0, a = 1.0}
+COLOR_Pink := Color {r = 1.0, g = 0.0, b = 1.0, a = 1.0}
+COLOR_Gold := Color {r = 1.0, g = 0.8, b = 0.0, a = 1.0}
+COLOR_SkyBlue := Color {r = 0.0, g = 0.8, b = 1.0, a = 1.0}
+COLOR_Violet := Color {r = 0.5, g = 0.0, b = 1.0, a = 1.0}
+COLOR_Beige := Color {r = 0.96, g = 0.96, b = 0.86, a = 1.0}
+COLOR_Mint := Color {r = 0.0, g = 1.0, b = 0.5, a = 1.0}
+COLOR_Chocolate := Color {r = 0.82, g = 0.41, b = 0.12, a = 1.0}
+COLOR_Coral := Color {r = 1.0, g = 0.5, b = 0.31, a = 1.0}
+COLOR_Lavender := Color {r = 0.9, g = 0.9, b = 0.98, a = 1.0}
+COLOR_Maroon := Color {r = 0.5, g = 0.0, b = 0.0, a = 1.0}
+COLOR_Rose := Color {r = 1.0, g = 0.0, b = 0.5, a = 1.0}
+COLOR_Tan := Color {r = 0.9, g = 0.6, b = 0.4, a = 1.0}
+COLOR_Khaki := Color {r = 0.94, g = 0.9, b = 0.55, a = 1.0}
+COLOR_Peach := Color {r = 1.0, g = 0.85, b = 0.73, a = 1.0}
+COLOR_Eggshell := Color {r = 0.94, g = 0.9, b = 0.81, a = 1.0}
+COLOR_Honeydew := Color {r = 0.94, g = 1.0, b = 0.94, a = 1.0}
+COLOR_LavenderBlush := Color {r = 1.0, g = 0.94, b = 0.96, a = 1.0}
+COLOR_LemonChiffon := Color {r = 1.0, g = 0.98, b = 0.8, a = 1.0}
+COLOR_Linen := Color {r = 0.98, g = 0.94, b = 0.9, a = 1.0}
+COLOR_MintCream := Color {r = 0.96, g = 1.0, b = 0.98, a = 1.0}
+COLOR_MistyRose := Color {r = 1.0, g = 0.89, b = 0.88, a = 1.0}
+COLOR_Moccasin := Color {r = 1.0, g = 0.89, b = 0.71, a = 1.0}
+COLOR_NavajoWhite := Color {r = 1.0, g = 0.87, b = 0.68, a = 1.0}
+COLOR_OldLace := Color {r = 0.99, g = 0.96, b = 0.9, a = 1.0}
+COLOR_PapayaWhip := Color {r = 1.0, g = 0.94, b = 0.84, a = 1.0}
+COLOR_PeachPuff := Color {r = 1.0, g = 0.85, b = 0.73, a = 1.0}
+COLOR_SeaShell := Color {r = 1.0, g = 0.96, b = 0.93, a = 1.0}
+COLOR_Snow := Color {r = 1.0, g = 0.98, b = 0.98, a = 1.0}
+COLOR_Thistle := Color {r = 0.85, g = 0.75, b = 0.85, a = 1.0}
+COLOR_Turquoise := Color {r = 0.25, g = 0.88, b = 0.82, a = 1.0}
+COLOR_Wheat := Color {r = 0.96, g = 0.87, b = 0.7, a = 1.0}
+COLOR_YellowGreen := Color {r = 0.6, g = 0.8, b = 0.2, a = 1.0}
+COLOR_DarkBlue := Color {r = 0.0, g = 0.0, b = 0.55, a = 1.0}
+COLOR_DarkCyan := Color {r = 0.0, g = 0.55, b = 0.55, a = 1.0}
+COLOR_DarkGoldenrod := Color {r = 0.72, g = 0.53, b = 0.04, a = 1.0}
+COLOR_DarkGreen := Color {r = 0.0, g = 0.39, b = 0.0, a = 1.0}
+COLOR_DarkKhaki := Color {r = 0.74, g = 0.72, b = 0.42, a = 1.0}
+COLOR_DarkMagenta := Color {r = 0.55, g = 0.0, b = 0.55, a = 1.0}
+COLOR_DarkOliveGreen := Color {r = 0.33, g = 0.42, b = 0.18, a = 1.0}
+COLOR_DarkOrange := Color {r = 1.0, g = 0.55, b = 0.0, a = 1.0}
+COLOR_DarkOrchid := Color {r = 0.6, g = 0.2, b = 0.8, a = 1.0}
+COLOR_DarkRed := Color {r = 0.55, g = 0.0, b = 0.0, a = 1.0}
+COLOR_DarkSalmon := Color {r = 0.91, g = 0.59, b = 0.48, a = 1.0}
+COLOR_DarkSeaGreen := Color {r = 0.56, g = 0.74, b = 0.56, a = 1.0}
+COLOR_DarkSlateBlue := Color {r = 0.28, g = 0.24, b = 0.55, a = 1.0}
+COLOR_DarkSlateGray := Color {r = 0.18, g = 0.31, b = 0.31, a = 1.0}
+
 
 Vertex2 :: struct {
   pos: [2]f32,
@@ -177,6 +245,18 @@ init_stamp_batch_renderer :: proc(using ctx: ^Context, render_pass_config: Rende
     input_attributes = vertex2UV_inputs[:],
   }
   stampr.textured_rect_render_program = create_render_program(ctx, &render_program_create_info) or_return
+
+  render_program_create_info = RenderProgramCreateInfo {
+    pipeline_config = PipelineCreateConfig {
+      vertex_shader_filepath = get_shader_path(ctx.violin_package_relative_path, "violin/shaders/stb_font.vert") or_return,
+      fragment_shader_filepath = get_shader_path(ctx.violin_package_relative_path, "violin/shaders/stb_font.frag") or_return,
+      render_pass = stampr.render_pass,
+    },
+    vertex_size = size_of(Vertex2UV),
+    buffer_bindings = ubo_and_texture_binding[:],
+    input_attributes = vertex2UV_inputs[:],
+  }
+  stampr.stb_font_render_program = create_render_program(ctx, &render_program_create_info) or_return
   
   // Uniform Buffer
   stampr.uniform_buffer.capacity = auto_cast (size_of(f32) * uniform_buffer_size) // TODO -- appropriate size
@@ -225,8 +305,9 @@ __release_stamp_render_resource :: proc(using ctx: ^Context, tdr: ^StampRenderRe
   destroy_vertex_buffer(ctx, tdr.textured_rect_vertex_buffer)
   destroy_resource_any(ctx, tdr.uniform_buffer.rh)
 
-  destroy_render_program(ctx, &tdr.colored_rect_render_program)
+  destroy_render_program(ctx, &tdr.stb_font_render_program)
   destroy_render_program(ctx, &tdr.textured_rect_render_program)
+  destroy_render_program(ctx, &tdr.colored_rect_render_program)
 
   // if tdr.clear_render_pass != 0 do destroy_render_pass(ctx, tdr.clear_render_pass)
   destroy_render_pass(ctx, tdr.render_pass)
@@ -287,11 +368,14 @@ stamp_colored_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRender
     rect.y / cast(f32)rctx.ctx.swap_chain.extent.height,
     rect.width / cast(f32)rctx.ctx.swap_chain.extent.width,
     rect.height / cast(f32)rctx.ctx.swap_chain.extent.height,
-    auto_cast color.r / 255.0,
-    auto_cast color.g / 255.0,
-    auto_cast color.b / 255.0,
-    auto_cast color.a / 255.0,
+    auto_cast color.r,
+    auto_cast color.g,
+    auto_cast color.b,
+    auto_cast color.a,
   }
+  // fmt.println("stamp_colored_rect>rect:", rect)
+  // fmt.println("stamp_colored_rect>color:", color)
+  // fmt.println("stamp_colored_rect>parameter_data:", parameter_data)
 
   // Write to the HOST_VISIBLE memory
   ubo_offset: vk.DeviceSize = auto_cast stampr.uniform_buffer.utilization
@@ -399,7 +483,7 @@ stamp_textured_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRende
   // Write the input to the uniform buffer
   tint_ := tint
   if tint_ == nil {
-    tint_ = &Color_White
+    tint_ = &COLOR_White
   }
   PARAM_COUNT :: 12
   parameter_data := [PARAM_COUNT]f32 {
@@ -407,10 +491,10 @@ stamp_textured_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRende
     rect.y / cast(f32)rctx.ctx.swap_chain.extent.height,
     rect.width / cast(f32)rctx.ctx.swap_chain.extent.width,
     rect.height / cast(f32)rctx.ctx.swap_chain.extent.height,
-    auto_cast tint_.r / 255.0,
-    auto_cast tint_.g / 255.0,
-    auto_cast tint_.b / 255.0,
-    auto_cast tint_.a / 255.0,
+    tint_.r,
+    tint_.g,
+    tint_.b,
+    tint_.a,
     sub_uv_coords[0],
     sub_uv_coords[1],
     sub_uv_coords[2] - sub_uv_coords[0],
@@ -536,17 +620,23 @@ stamp_textured_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRende
 // vi.stamp_text(rctx, handle_2d, cmd_t.font, cmd_t.text, cmd_t.pos.x, cmd_t.pos.y, cmd_t.color)
 stamp_text :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResourceHandle, font_handle: FontResourceHandle,
   text: string, #any_int pos_x: int, #any_int pos_y: int, color: ^Color) -> Error {
-  fmt.println("stamp_text:", text, "pos_x:", pos_x, "pos_y:", pos_y, "color:", color)
+  // fmt.println("stamp_text:", text, "pos_x:", pos_x, "pos_y:", pos_y, "color:", color)
   // Text Length
   text_length := len(text)
   if text_length == 0 do return .Success
   
+  // Obtain the resources
+  stampr: ^StampRenderResource = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stamp_handle) or_return
+  vbuf: ^VertexBuffer = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stampr.textured_rect_vertex_buffer) or_return
+  ibuf: ^IndexBuffer = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stampr.rect_index_buffer) or_return
+  ubuf: ^Buffer = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stampr.uniform_buffer.rh) or_return
+
   // Get the font image
   font: ^Font = auto_cast _get_resource(&ctx.resource_manager, auto_cast font_handle) or_return
   font_texture: ^Texture = auto_cast _get_resource(&ctx.resource_manager, auto_cast font.texture) or_return
 
   align_x: f32 = auto_cast pos_x
-  align_y: f32 = auto_cast pos_y
+  align_y: f32 = auto_cast pos_y - font.bump_up_y_offset
 
   letter: u8
   clip: vk.Rect2D
@@ -578,215 +668,138 @@ stamp_text :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResource
   
     rect: Rectf = {q.x0, q.y0, (q.x1 - q.x0), (q.y1 - q.y0)}
     // fmt.println("letter:", letter, "rect:", rect, "q.s0:", q.s0, "q.t0:", q.t0, "q.s1:", q.s1, "q.t1:", q.t1)
-    stamp_textured_rect(rctx, stamp_handle, font.texture, &rect, color, {q.s0, q.t0, q.s1, q.t1})
+    
+    // Write the input to the uniform buffer
+    tint_ := color
+    if tint_ == nil {
+      tint_ = &COLOR_White
+    }
+    PARAM_COUNT :: 12
+    parameter_data := [PARAM_COUNT]f32 {
+      rect.x / cast(f32)rctx.ctx.swap_chain.extent.width,
+      rect.y / cast(f32)rctx.ctx.swap_chain.extent.height,
+      rect.width / cast(f32)rctx.ctx.swap_chain.extent.width,
+      rect.height / cast(f32)rctx.ctx.swap_chain.extent.height,
+      tint_.r,
+      tint_.g,
+      tint_.b,
+      tint_.a,
+      q.s0,
+      q.t0,
+      q.s1 - q.s0,
+      q.t1 - q.t0,
+    }
 
-  // -- FROM HERE --
-  //   //   // TODO -- figure out why this won't work
-  //   //   // if (letter == ' ') {
-  //   //   //   // No need to print empty space (yet...)
-  //   //   //   continue;
-  //   //   // }
-  
-  //   //   // printf("mrt-2\n");
-  //   //   // stbtt_bakedchar *b = font->char_data + (letter - 32);
-  //   //   // q.y0 += b->y1 - b->y0;
-  //   //   // q.y1 += b->y1 - b->y0;
-  //   //   // {
-  //   //   //   // opengl y invert
-  //   //   //   float t = q.y1;
-  //   //   //   q.y1 += (q.y1 - q.y0);
-  //   //   //   q.y0 = t;
-  //   //   // }
-  //   //   width = q.x1 - q.x0;
-  //   //   height = q.y1 - q.y0;
-  //   width = q.x1 - q.x0
-  //   height = q.y1 - q.y0
-  
-  //   //   q.y0 += font->draw_vertical_offset;
-  //   //   q.y1 += font->draw_vertical_offset;
-  //   q.y0 += font.draw_vertical_offset
-  //   q.y1 += font.draw_vertical_offset
-  
-  //   // Determine the clip
-  //   clip.offset.x = auto_cast (q.x0 < 0 ? 0 : q.x0)
-  //   clip.offset.y = auto_cast (q.y0 < 0 ? 0 : q.y0)
-  //   clip.extent.width = auto_cast width
-  //   clip.extent.height = auto_cast height
-  //   {
-  //     // TODO -- clipping
-  //     // cc = auto_cast &cmd_t.clip
-  //   //     if (cc->extents.width && cc->extents.height) {
-  //   //       if (clip.offset.x < cc->offset.x)
-  //   //         clip.offset.x = cc->offset.x;
-  //   //       if (clip.offset.y < cc->offset.y)
-  //   //         clip.offset.y = cc->offset.y;
-  //   //       if (clip.offset.x + clip.extent.width > cc->offset.x + cc->extents.width) {
-  //   //         if (cc->offset.x + cc->extents.width <= clip.offset.x)
-  //   //           clip.extent.width = 0U;
-  //   //         else
-  //   //           clip.extent.width = cc->offset.x + cc->extents.width - clip.offset.x;
-  //   //       }
-  //   //       if (clip.offset.y + clip.extent.height > cc->offset.y + cc->extents.height) {
-  //   //         if (cc->offset.y + cc->extents.height <= clip.offset.y)
-  //   //           clip.extent.height = 0U;
-  //   //         else
-  //   //           clip.extent.height = cc->offset.y + cc->extents.height - clip.offset.y;
-  //   //       }
-  //   }
-  
-  //   //     if (clip.extent.width <= 0U || clip.extent.height <= 0U)
-  //   //       continue;
-  //   //     if (clip.offset.x >= image_render->image_width || clip.offset.y >= image_render->image_height)
-  //   //       continue;
-  //   if clip.extent.width <= 0 || clip.extent.height <= 0 do continue
-  //   if clip.offset.x >= font.image.width || clip.offset.y >= font.image.height do continue
-  
-  //   //     // if (clip.extent.width > 4444) {
-  //   //     //   printf("clip:%i %i %u %u || cc:%i %i %u %u\n", clip.offset.x, clip.offset.y, clip.extent.width,
-  //   //     //          clip.extent.height, cc->offset.x, cc->offset.y, cc->extents.width, cc->extents.height);
-  //   //     // }
-  //   // }
-  //   //   // printf("baked_quad: s0=%.2f s1==%.2f t0=%.2f t1=%.2f x0=%.2f x1=%.2f y0=%.2f y1=%.2f xoff=%.2f yoff=%.2f\n",
-  //   //   // q.s0,
-  //   //   //        q.s1, q.t0, q.t1, q.x0, q.x1, q.y0, q.y1, font->char_data->xoff, font->char_data->yoff);
-  //   //   // printf("align_x=%.2f align_y=%.2f\n", align_x, align_y);
-  //   //   // printf("font->draw_vertical_offset=%.2f\n", font->draw_vertical_offset);
-  
-  //   // Vertex Uniform Buffer Object  -- TODO do checking on copy_buffer->index and data array size
-  //   //   vert_data_scale_offset *vert_ubo_data = (vert_data_scale_offset *)&copy_buffer->data[copy_buffer->index];
-  //   //   copy_buffer->index += sizeof(vert_data_scale_offset);
-  //   //   MCassert(copy_buffer->index < MRT_SEQUENCE_COPY_BUFFER_SIZE, "BUFFER TOO SMALL");
-  //   //   // printf("mrt-2a\n");
-  
-  //   //   scale_multiplier =
-  //   //       1.f / (float)(image_render->image_width < image_render->image_height ? image_render->image_width
-  //   //                                                                            : image_render->image_height);
-  //   //   vert_ubo_data->scale.x = 2.f * width * scale_multiplier;
-  //   //   vert_ubo_data->scale.y = 2.f * height * scale_multiplier;
-  //   //   vert_ubo_data->offset.x = -1.0f + 2.0f * q.x0 / (float)(image_render->image_width) +
-  //   //                             1.0f * (float)width / (float)(image_render->image_width);
-  //   //   vert_ubo_data->offset.y = -1.0f + 2.0f * q.y0 / (float)(image_render->image_height) +
-  //   //                             1.0f * (float)height / (float)(image_render->image_height);
-  
-  //   //   // printf("mrt-3\n");
-  //   //   // Fragment Data
-  //   //   frag_ubo_tint_texcoordbounds *frag_ubo_data =
-  //   //       (frag_ubo_tint_texcoordbounds *)&copy_buffer->data[copy_buffer->index];
-  //   //   copy_buffer->index += sizeof(frag_ubo_tint_texcoordbounds);
-  //   //   MCassert(copy_buffer->index < MRT_SEQUENCE_COPY_BUFFER_SIZE, "BUFFER TOO SMALL");
-  
-  //   //   memcpy(&frag_ubo_data->tint, &cmd->print_text.color, sizeof(float) * 4);
-  //   //   frag_ubo_data->tex_coord_bounds.s0 = q.s0;
-  //   //   frag_ubo_data->tex_coord_bounds.s1 = q.s1;
-  //   //   frag_ubo_data->tex_coord_bounds.t0 = q.t0;
-  //   //   frag_ubo_data->tex_coord_bounds.t1 = q.t1;
-  
-  //   //   // Setup viewport and clip
-  //   //   // printf("image_render : %f, %f\n",  (float)image_render->image_width,  (float)image_render->image_height);
-  //   //   set_viewport_cmd(command_buffer, 0.f, 0.f, (float)image_render->image_width, (float)image_render->image_height);
-  //   //   vkCmdSetScissor(command_buffer, 0, 1, &clip);
-  //   //   // set_scissor_cmd(command_buffer, clip.offset.x, clip.offset.y, clip.extent.width, clip.extent.height);
-  
-  //   //   // printf("mrt-4\n");
-  //   //   // Allocate the descriptor set from the pool.
-  //   //   VkDescriptorSetAllocateInfo setAllocInfo = {};
-  //   //   setAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-  //   //   setAllocInfo.pNext = NULL;
-  //   //   setAllocInfo.descriptorPool = p_vkrs->descriptor_pool;
-  //   //   setAllocInfo.descriptorSetCount = 1;
-  //   //   setAllocInfo.pSetLayouts = &p_vkrs->font_prog.descriptor_layout;
-  
-  //   //   unsigned int descriptor_set_index = p_vkrs->descriptor_sets_count;
-  //   //   // printf("cmd->text:'%s' descriptor_set_index=%u\n", cmd->print_text.text, descriptor_set_index);
-  //   //   res = vkAllocateDescriptorSets(p_vkrs->device, &setAllocInfo, &p_vkrs->descriptor_sets[descriptor_set_index]);
-  //   //   VK_CHECK(res, "vkAllocateDescriptorSets");
-  
-  //   //   VkDescriptorSet desc_set = p_vkrs->descriptor_sets[descriptor_set_index];
-  //   //   p_vkrs->descriptor_sets_count += setAllocInfo.descriptorSetCount;
-  
-  //   //   // Queue Buffer and Descriptor Writes
-  //   //   const unsigned int MAX_DESC_SET_WRITES = 4;
-  //   //   VkWriteDescriptorSet writes[MAX_DESC_SET_WRITES];
-  //   //   VkDescriptorBufferInfo buffer_infos[MAX_DESC_SET_WRITES];
-  //   //   int buffer_info_index = 0;
-  //   //   int write_index = 0;
-  
-  //   //   // printf("mrt-5\n");
-  //   //   VkDescriptorBufferInfo *vert_ubo_info = &buffer_infos[buffer_info_index++];
-  //   //   res = mrt_write_desc_and_queue_render_data(p_vkrs, sizeof(vert_data_scale_offset), vert_ubo_data, vert_ubo_info);
-  //   //   VK_CHECK(res, "mrt_write_desc_and_queue_render_data");
-  
-  //   //   VkDescriptorBufferInfo *frag_ubo_info = &buffer_infos[buffer_info_index++];
-  //   //   res = mrt_write_desc_and_queue_render_data(p_vkrs, sizeof(frag_ubo_tint_texcoordbounds), frag_ubo_data,
-  //   //                                              frag_ubo_info);
-  //   //   VK_CHECK(res, "mrt_write_desc_and_queue_render_data");
-  
-  //   //   // printf("mrt-6\n");
-  //   //   // Global Vertex Shader Uniform Buffer
-  //   //   VkWriteDescriptorSet *write = &writes[write_index++];
-  //   //   write->sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  //   //   write->pNext = NULL;
-  //   //   write->dstSet = desc_set;
-  //   //   write->descriptorCount = 1;
-  //   //   write->descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  //   //   write->pBufferInfo = &copy_buffer->vpc_desc_buffer_info;
-  //   //   write->dstArrayElement = 0;
-  //   //   write->dstBinding = 0;
-  
-  //   //   // Element Vertex Shader Uniform Buffer
-  //   //   write = &writes[write_index++];
-  //   //   write->sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  //   //   write->pNext = NULL;
-  //   //   write->dstSet = desc_set;
-  //   //   write->descriptorCount = 1;
-  //   //   write->descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  //   //   write->pBufferInfo = vert_ubo_info;
-  //   //   write->dstArrayElement = 0;
-  //   //   write->dstBinding = 1;
-  
-  //   //   // Element Fragment Shader Uniform Buffer
-  //   //   write = &writes[write_index++];
-  //   //   write->sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  //   //   write->pNext = NULL;
-  //   //   write->dstSet = desc_set;
-  //   //   write->descriptorCount = 1;
-  //   //   write->descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-  //   //   write->pBufferInfo = frag_ubo_info;
-  //   //   write->dstArrayElement = 0;
-  //   //   write->dstBinding = 2;
-  
-  //   //   // printf("mrt-7\n");
-  //   //   VkDescriptorImageInfo image_sampler_info = {};
-  //   //   image_sampler_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-  //   //   image_sampler_info.imageView = font_image->view;
-  //   //   image_sampler_info.sampler = font_image->sampler;
-  
-  //   //   // Element Fragment Shader Combined Image Sampler
-  //   //   write = &writes[write_index++];
-  //   //   write->sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  //   //   write->pNext = NULL;
-  //   //   write->dstSet = desc_set;
-  //   //   write->descriptorCount = 1;
-  //   //   write->descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  //   //   write->pImageInfo = &image_sampler_info;
-  //   //   write->dstArrayElement = 0;
-  //   //   write->dstBinding = 3;
-  
-  //   //   // printf("mrt-8\n");
-  //   //   vkUpdateDescriptorSets(p_vkrs->device, write_index, writes, 0, NULL);
-  
-  //   //   vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, p_vkrs->font_prog.pipeline_layout, 0, 1,
-  //   //                           &desc_set, 0, NULL);
-  
-  //   //   vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, p_vkrs->font_prog.pipeline);
-  
-  //   //   const VkDeviceSize offsets[1] = {0};
-  //   //   vkCmdBindVertexBuffers(command_buffer, 0, 1, &p_vkrs->textured_shape_vertices.buf, offsets);
-  
-  //   //   vkCmdDraw(command_buffer, 2 * 3, 1, 0, 0);
-  //   //   // printf("mrt-9\n");
+    // Write to the HOST_VISIBLE memory
+    ubo_offset: vk.DeviceSize = auto_cast stampr.uniform_buffer.utilization
+    ubo_range: int : size_of(f32) * PARAM_COUNT
+
+    if ubo_offset + auto_cast ubo_range > stampr.uniform_buffer.capacity {
+      fmt.eprintln("Error] stamp_colored_rect> stamp uniform buffer is full. Too many calls for initial buffer size.",
+        "Consider increasing the buffer size")
+      return .NotYetDetailed
+    }
+    
+    // Update the uniform buffer utilization
+    stampr.uniform_buffer.utilization += max(cast(vk.DeviceSize) ubo_range, stampr.uniform_buffer.device_min_block_alignment)
+    
+    // Write to the buffer
+    copy_dst: rawptr = auto_cast (cast(uintptr)ubuf.allocation_info.pMappedData + auto_cast ubo_offset)
+    mem.copy(copy_dst, auto_cast &parameter_data[0], ubo_range)
+
+    // Setup viewport and clip --- TODO this ain't true
+    _set_viewport_cmd(command_buffer, 0, 0, auto_cast ctx.swap_chain.extent.width,
+      auto_cast ctx.swap_chain.extent.height)
+    _set_scissor_cmd(command_buffer, 0, 0, ctx.swap_chain.extent.width, ctx.swap_chain.extent.height)
+    
+    // Queue Buffer Write
+    MAX_DESC_SET_WRITES :: 8
+    writes: [MAX_DESC_SET_WRITES]vk.WriteDescriptorSet
+    buffer_infos: [1]vk.DescriptorBufferInfo
+    image_sampler_infos: [1]vk.DescriptorImageInfo
+    write_index := 0
+    
+    // Allocate the descriptor set from the pool
+    descriptor_set_index := descriptor_sets_index
+
+    set_alloc_info := vk.DescriptorSetAllocateInfo {
+      sType = .DESCRIPTOR_SET_ALLOCATE_INFO,
+      // Use the descriptor pool we created earlier (the one dedicated to this frame)
+      descriptorPool = descriptor_pool,
+      descriptorSetCount = 1,
+      pSetLayouts = &stampr.stb_font_render_program.descriptor_layout,
+    }
+    vkres := vk.AllocateDescriptorSets(ctx.device, &set_alloc_info, &descriptor_sets[descriptor_set_index])
+    if vkres != .SUCCESS {
+      fmt.eprintln("vkAllocateDescriptorSets failed:", vkres)
+      return .NotYetDetailed
+    }
+    desc_set := descriptor_sets[descriptor_set_index]
+    descriptor_sets_index += set_alloc_info.descriptorSetCount
+
+    // Describe the Vertex Shader Uniform Buffer
+    {
+      buffer_infos[0].buffer = ubuf.buffer
+      buffer_infos[0].offset = ubo_offset
+      buffer_infos[0].range = auto_cast ubo_range
+
+      write := &writes[write_index]
+      write_index += 1
+
+      write.sType = .WRITE_DESCRIPTOR_SET
+      write.dstSet = desc_set
+      write.descriptorCount = 1
+      write.descriptorType = .UNIFORM_BUFFER
+      write.pBufferInfo = &buffer_infos[0]
+      write.dstArrayElement = 0
+      write.dstBinding = stampr.stb_font_render_program.layout_bindings[0].binding
+    }
+
+    // Describe the Fragment Shader Combined Image Sampler
+    {
+      image_sampler_info := &image_sampler_infos[0]
+      image_sampler_info.imageLayout = .SHADER_READ_ONLY_OPTIMAL
+      image_sampler_info.imageView = font_texture.image_view
+      image_sampler_info.sampler = font_texture.sampler
+      
+      write := &writes[write_index]
+      write_index += 1
+
+      write.sType = .WRITE_DESCRIPTOR_SET
+      write.dstSet = desc_set
+      write.descriptorCount = 1
+      write.descriptorType = .COMBINED_IMAGE_SAMPLER
+      write.pImageInfo = image_sampler_info
+      write.dstArrayElement = 0
+      write.dstBinding = stampr.stb_font_render_program.layout_bindings[1].binding
+    }
+    
+    vk.UpdateDescriptorSets(ctx.device, auto_cast write_index, &writes[0], 0, nil)
+
+    vk.CmdBindDescriptorSets(command_buffer, .GRAPHICS, stampr.stb_font_render_program.pipeline.layout, 0, 1, &desc_set, 0, nil)
+
+    vk.CmdBindPipeline(command_buffer, .GRAPHICS, stampr.stb_font_render_program.pipeline.handle)
+
+    vk.CmdBindIndexBuffer(command_buffer, ibuf.buffer, 0, ibuf.index_type) // TODO -- support other index types
+
+    // const VkDeviceSize offsets[1] = {0};
+    // vkCmdBindVertexBuffers(command_buffer, 0, 1, &cmd->render_program.data->vertices->buf, offsets);
+    // // vkCmdDraw(command_buffer, 3 * 2 * 6, 1, 0, 0);
+    // int index_draw_count = cmd->render_program.data->specific_index_draw_count;
+    // if (!index_draw_count)
+    //   index_draw_count = cmd->render_program.data->indices->capacity;
+    offsets: vk.DeviceSize = 0
+    vk.CmdBindVertexBuffers(command_buffer, 0, 1, &vbuf.buffer, &offsets)
+    // TODO -- specific index draw count
+
+    // // printf("index_draw_count=%i\n", index_draw_count);
+    // // printf("cmd->render_program.data->indices->capacity=%i\n", cmd->render_program.data->indices->capacity);
+    // // printf("cmd->render_program.data->specific_index_draw_count=%i\n",
+    // //        cmd->render_program.data->specific_index_draw_count);
+
+    // vkCmdDrawIndexed(command_buffer, index_draw_count, 1, 0, 0, 0);
+    vk.CmdDrawIndexed(command_buffer, auto_cast ibuf.index_count, 1, 0, 0, 0) // TODO -- index_count as u32?
+    // fmt.print("ibuf.index_count:", ibuf.index_count)
   }
-
-  // free(cmd->print_text.text);
   return .Success
 }

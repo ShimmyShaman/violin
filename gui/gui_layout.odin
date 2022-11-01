@@ -174,6 +174,7 @@ _determine_text_restrained_control_extents :: proc(ctx: ^vi.Context, control: ^C
     }
   }
 
+  // fmt.println("Determined extents for control: ", control.ctype, " - ", layout.determined_width_extent, "x", layout.determined_height_extent)
   return .Success
 }
 
@@ -286,6 +287,7 @@ _update_control_layout :: proc(control: ^Control, available_area: vi.Rectf, upda
       // TODO -- change/rerender flag?
     }
   }
+  fmt.println("Determined layout for control: ", control.ctype, " - ", control.bounds)
 
   // Children
   if !update_children do return

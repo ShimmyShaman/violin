@@ -191,7 +191,7 @@ init_vulkan :: proc(using ctx: ^Context) -> Error {
   
   _create_surface_and_set_device(ctx) or_return
   
-  fmt.println("Queue Indices:");
+  // fmt.println("Queue Indices:");
   for q, f in queue_indices do fmt.printf("  %v: %d\n", f, q);
   
   _create_logical_device(ctx) or_return
@@ -424,7 +424,7 @@ check_vulkan_layer_support :: proc(create_info: ^vk.InstanceCreateInfo) -> Error
         create_info.enabledLayerCount = 0
         create_info.ppEnabledLayerNames = nil
       }
-      fmt.println("Validation Layers Loaded");
+      // fmt.println("Validation Layers Loaded");
     }
     else
     {
@@ -469,7 +469,7 @@ _create_instance :: proc(ctx: ^Context) -> Error {
     fmt.eprintln("Error creating Vulkan Instance:", vkres)
     return .NotYetDetailed
   }
-  fmt.println("created vk Instance")
+  // fmt.println("created vk Instance")
 
   // Reiterate procedure load with the instance set
   vk.load_proc_addresses(get_proc_address)

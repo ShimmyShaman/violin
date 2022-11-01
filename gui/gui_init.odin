@@ -112,7 +112,8 @@ when ODIN_OS == .Darwin {
   DEFAULT_FONT_PATH :: "/Library/Fonts/Arial.ttf"
 }
 
-create_gui_root :: proc(ctx: ^vi.Context, default_font_path: string = DEFAULT_FONT_PATH) -> (gui_root: ^GUIRoot, err: vi.Error) {
+create_gui_root :: proc(ctx: ^vi.Context, default_font_path: string = DEFAULT_FONT_PATH, default_font_size: int = 16) \
+    -> (gui_root: ^GUIRoot, err: vi.Error) {
   fh := vi.load_font(ctx, default_font_path, 16) or_return
 
   gui_root = new(GUIRoot)
@@ -183,7 +184,7 @@ destroy_gui :: proc(ctx: ^vi.Context, gui_root: ^^GUIRoot) {
 create_label :: proc(parent: rawptr, name_id: string = "label") -> (label: ^Label, err: vi.Error) {
   // Obtain the gui root
   gui_root: ^GUIRoot = _get_gui_root(parent)
-  
+
   // Create the label
   label = new(Label)
 
@@ -204,15 +205,15 @@ create_label :: proc(parent: rawptr, name_id: string = "label") -> (label: ^Labe
   // label.bounds.bottom = 20.0
 
   // Default Settings
-  label._layout.min_width = 10;
-  label._layout.min_height = 20;
+  label._layout.min_width = 8;
+  label._layout.min_height = 8;
   label._layout.padding = { 1, 1, 1, 1 }
 
   // Set the label info
   label.text = "Label"
   label.font = gui_root.default_font
-  label.font_color = vi.Color{1.0, 1.0, 1.0, 1.0}
-  label.background_color = vi.Color{0.0, 0.0, 0.0, 0.0}
+  label.font_color = vi.COLOR_White
+  label.background_color = vi.COLOR_DarkSlateGray
   label.clip_text_to_bounds = false
 
   // label._layout.requires_layout_update = true
