@@ -52,23 +52,31 @@ begin_present :: proc(using ctx: ^Context) -> (render_context: ^RenderContext, e
   sync.lock(&render_context.mutex)
   defer sync.unlock(&render_context.mutex)
 
-  // Setup the render context
-  vk.WaitForFences(device, 1, &render_context.in_flight, true, max(u64));
-
   // Acquire the next image
-  vkres := vk.AcquireNextImageKHR(device, swap_chain.handle, max(u64), render_context.image_available, {}, &render_context.swap_chain_index);
-  if vkres == .ERROR_OUT_OF_DATE_KHR || vkres == .SUBOPTIMAL_KHR || framebuffer_resized {
-    framebuffer_resized = false
-    recreate_swap_chain(ctx)
-    fmt.eprintln("TODO -- swap chain recreated -- Have to handle this better")
-    err = .NotYetDetailed
-    return
-  } 
-  else if vkres != .SUCCESS  {
-    fmt.eprintln("Error: Failed to acquire swap chain image:", vkres);
-    err = .NotYetDetailed
-    return
+  fmt.println("into acquire next image")
+  acquire_loop: for {
+    // Setup the render context
+    vk.WaitForFences(device, 1, &render_context.in_flight, true, max(u64))
+  
+    vkres := vk.AcquireNextImageKHR(device, swap_chain.handle, max(u64), render_context.image_available,
+      {}, &render_context.swap_chain_index)
+    fmt.println("vkres: ", vkres)
+
+    if vkres == .ERROR_OUT_OF_DATE_KHR || framebuffer_resized {
+      framebuffer_resized = false
+      fmt.println("handle framebuffer resize")
+      _handle_resized_presentation(ctx) or_return
+      continue acquire_loop
+    }
+    if vkres != .SUCCESS && vkres != .SUBOPTIMAL_KHR {
+      fmt.eprintln("Error: Failed to acquire swap chain image:", vkres)
+      err = .NotYetDetailed
+      return
+    }
+
+    break
   }
+  fmt.println("exit acquire next image")
 
   // -- The swapchain references
   render_context.image = swap_chain.images[render_context.swap_chain_index]
@@ -76,7 +84,7 @@ begin_present :: proc(using ctx: ^Context) -> (render_context: ^RenderContext, e
 
   // Reset
   // -- Fences
-  vkres = vk.ResetFences(device, 1, &render_context.in_flight)
+  vkres := vk.ResetFences(device, 1, &render_context.in_flight)
   if vkres != .SUCCESS {
     fmt.eprintln("Error: Failed to reset fences:", vkres)
     err = .NotYetDetailed

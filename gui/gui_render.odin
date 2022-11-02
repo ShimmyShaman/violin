@@ -36,8 +36,8 @@ _render_label_control :: proc(using rctx: ^vi.RenderContext, stamprr: vi.StampRe
   }
 
   if label.text != "" && label.font_color.a > 0.0 {
-    fmt.print("Rendering text:", label.text, "at:", label.bounds.x, "x", label.bounds.y + label.bounds.height)
-    fmt.println(" with color:", label.font_color)
+    // fmt.print("Rendering text:", label.text, "at:", label.bounds.x, "x", label.bounds.y + label.bounds.height)
+    // fmt.println(" with color:", label.font_color)
     vi.stamp_text(rctx, stamprr, label.font, label.text, label.bounds.x, label.bounds.y + label.bounds.height, &label.font_color) or_return
   }
 

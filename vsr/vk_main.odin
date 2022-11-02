@@ -34,6 +34,7 @@ Error :: enum {
   AllocationFailed,
   ResourceNotFound,
   InvalidState,
+  VulkanPresentationResized,
 }
 
 Context :: struct {
@@ -168,7 +169,8 @@ init :: proc(violin_package_relative_path: string) -> (ctx: ^Context, err: Error
   }
 
   // Window
-  ctx.window = CreateWindow("OdWin", WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, 960, 600, WINDOW_SHOWN | WINDOW_VULKAN)
+  ctx.window = CreateWindow("OdWin", WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, 960, 600,
+    WINDOW_SHOWN | WINDOW_RESIZABLE | WINDOW_VULKAN)
 
   init_vulkan(ctx) or_return
   return
@@ -206,7 +208,7 @@ init_vulkan :: proc(using ctx: ^Context) -> Error {
   _init_vma(ctx) or_return
   
   create_swap_chain(ctx)
-  create_image_views(ctx)
+  create_swap_chain_image_views(ctx)
 
   create_command_pool(ctx) or_return
   
@@ -774,9 +776,11 @@ choose_swap_extent :: proc(using ctx: ^Context) -> vk.Extent2D {
   return extent;
 }
 
-create_swap_chain :: proc(using ctx: ^Context) {
+create_swap_chain :: proc(using ctx: ^Context) -> Error {
   using ctx.swap_chain.support;
 
+  // TODO -- some of this is not needed to be repeated when just resizing the window (recreating the swap chain)
+  // -- Not urgent
   swap_chain.format       = choose_surface_format(ctx);
   swap_chain.present_mode = choose_present_mode(ctx);
   swap_chain.extent       = choose_swap_extent(ctx);
@@ -815,18 +819,25 @@ create_swap_chain :: proc(using ctx: ^Context) {
   create_info.clipped = true;
   create_info.oldSwapchain = vk.SwapchainKHR{};
   
-  if res := vk.CreateSwapchainKHR(device, &create_info, nil, &swap_chain.handle); res != .SUCCESS
-  {
+  if res := vk.CreateSwapchainKHR(device, &create_info, nil, &swap_chain.handle); res != .SUCCESS {
     fmt.eprintf("Error: failed to create swap chain!\n");
-    os.exit(1);
+    return .NotYetDetailed
   }
   
-  vk.GetSwapchainImagesKHR(device, swap_chain.handle, &swap_chain.image_count, nil);
+  if res := vk.GetSwapchainImagesKHR(device, swap_chain.handle, &swap_chain.image_count, nil); res != .SUCCESS {
+    fmt.eprintf("Error: failed to get swap chain images!\n");
+    return .NotYetDetailed
+  }
   swap_chain.images = make([]vk.Image, swap_chain.image_count);
-  vk.GetSwapchainImagesKHR(device, swap_chain.handle, &swap_chain.image_count, raw_data(swap_chain.images));
+  if res := vk.GetSwapchainImagesKHR(device, swap_chain.handle, &swap_chain.image_count, raw_data(swap_chain.images)); res != .SUCCESS {
+    fmt.eprintf("Error: failed to get swap chain images!\n");
+    return .NotYetDetailed
+  }
+
+  return .Success
 }
 
-create_image_views :: proc(using ctx: ^Context) {
+create_swap_chain_image_views :: proc(using ctx: ^Context) -> Error {
   using ctx.swap_chain;
   
   image_views = make([]vk.ImageView, len(images));
@@ -848,12 +859,13 @@ create_image_views :: proc(using ctx: ^Context) {
     create_info.subresourceRange.baseArrayLayer = 0;
     create_info.subresourceRange.layerCount = 1;
     
-    if res := vk.CreateImageView(device, &create_info, nil, &image_views[i]); res != .SUCCESS
-    {
+    if res := vk.CreateImageView(device, &create_info, nil, &image_views[i]); res != .SUCCESS {
       fmt.eprintf("Error: failed to create image view!");
-      os.exit(1);
+      return .NotYetDetailed
     }
   }
+
+  return .Success
 }
 
 create_graphics_pipeline :: proc(ctx: ^Context, pipeline_config: ^PipelineCreateConfig, vertex_binding_desc: ^vk.VertexInputBindingDescription,
@@ -1180,20 +1192,45 @@ create_sync_objects :: proc(using ctx: ^Context) -> Error {
   return .Success
 }
 
-recreate_swap_chain :: proc(using ctx: ^Context) {
+@(private) _handle_resized_presentation :: proc(using ctx: ^Context) -> Error {
+
   width, height := get_window_size(window)
-  for width == 0 && height == 0
-  {
-    width, height = get_window_size(window)
+  if width == auto_cast swap_chain.extent.width && height == auto_cast swap_chain.extent.height {
+    fmt.println("same dimensions")
+    return .Success
   }
-  vk.DeviceWaitIdle(device);
-  
-  cleanup_swap_chain(ctx);
-  
-  create_swap_chain(ctx);
-  create_image_views(ctx);
-  
-  _resize_framebuffer_resources(ctx)
+
+  // vk.DeviceWaitIdle(device)
+  cleanup_swap_chain(ctx)
+
+  create_swap_chain(ctx) or_return
+  create_swap_chain_image_views(ctx) or_return
+    
+  sync.lock(&ctx.resource_manager._mutex)
+  defer sync.unlock(&ctx.resource_manager._mutex)
+
+  iter: int
+  for rprh in iterate_resources(&iter, &ctx.resource_manager, .RenderPass) {
+    // fmt.println("rprh:", rprh)
+    render_pass: ^RenderPass = auto_cast _get_resource(&ctx.resource_manager, rprh) or_return
+    // fmt.println("render_pass:", render_pass)
+
+    // Delete Current
+    if render_pass.framebuffers != nil {
+      for i in 0..<len(render_pass.framebuffers) {
+        vk.DestroyFramebuffer(ctx.device, render_pass.framebuffers[i], nil)
+      }
+      if delete_slice(render_pass.framebuffers) != .None {
+        fmt.eprintln("Error: Failed to delete render_pass.framebuffers")
+        return .NotYetDetailed
+      }
+    }
+
+    // Recreate
+    _create_framebuffers(ctx, render_pass) or_return
+  }
+
+  return .Success
 }
 
 cleanup_swap_chain :: proc(using ctx: ^Context) {

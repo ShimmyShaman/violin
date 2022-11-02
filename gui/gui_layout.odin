@@ -95,7 +95,7 @@ _determine_control_extents :: proc(control: ^Control, restraints: LayoutExtentRe
       }
     }
   }
-  fmt.println("Determined extents for control: ", control.ctype, " - ", layout.determined_width_extent, "x", layout.determined_height_extent)
+  // fmt.println("Determined extents for control: ", control.ctype, " - ", layout.determined_width_extent, "x", layout.determined_height_extent)
 }
 
 _get_control_text_dimensions :: proc(ctx: ^vi.Context, control: ^Control) -> (width: f32, height: f32, err: vi.Error) {
@@ -118,7 +118,7 @@ _determine_text_restrained_control_extents :: proc(ctx: ^vi.Context, control: ^C
   layout := &control._layout
 
   str_width, str_height := _get_control_text_dimensions(ctx, control) or_return
-  fmt.println("Determined text dimensions for control: ", control.ctype, " - ", str_width, "x", str_height)
+  // fmt.println("Determined text dimensions for control: ", control.ctype, " - ", str_width, "x", str_height)
 
   // Width
   if layout.preferred_width != 0 {
@@ -287,7 +287,7 @@ _update_control_layout :: proc(control: ^Control, available_area: vi.Rectf, upda
       // TODO -- change/rerender flag?
     }
   }
-  fmt.println("Determined layout for control: ", control.ctype, " - ", control.bounds)
+  // fmt.println("Determined layout for control: ", control.ctype, " - ", control.bounds)
 
   // Children
   if !update_children do return

@@ -13,6 +13,8 @@ import stbtt "vendor:stb/truetype"
 
 import vma "violin:odin-vma"
 
+@(private) INITIAL_RESOURCE_HANDLE_INDEX :: 1000
+
 // https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/usage_patterns.html
 BufferUsage :: enum {
   Null = 0,
@@ -38,6 +40,7 @@ StampRenderResourceHandle :: distinct ResourceHandle
 FontResourceHandle :: distinct ResourceHandle
 
 ResourceKind :: enum {
+  Any = 0,
   Buffer = 1,
   Texture,
   DepthBuffer,
@@ -125,7 +128,6 @@ RenderPass :: struct {
 }
 
 StampRenderResource :: struct {
-  // clear_render_pass, draw_render_pass, present_render_pass: RenderPassResourceHandle,
   render_pass: RenderPassResourceHandle,
   colored_rect_render_program, textured_rect_render_program, stb_font_render_program: RenderProgram,
   colored_rect_vertex_buffer, textured_rect_vertex_buffer: VertexBufferResourceHandle,
@@ -151,7 +153,7 @@ Font :: struct {
 
 // TODO -- this is a bit of a hack, but it works for now
 // Allocated memory is disconjugate and not reusable
-RESOURCE_BUCKET_SIZE :: 32
+// RESOURCE_BUCKET_SIZE :: 32
 ResourceManager :: struct {
   _mutex: sync.Mutex,
   resource_index: ResourceHandle,
@@ -185,7 +187,7 @@ RenderProgram :: struct {
 }
 
 _init_resource_manager :: proc(using rm: ^ResourceManager) -> Error {
-  resource_index = 1000
+  resource_index = INITIAL_RESOURCE_HANDLE_INDEX
   resource_map = make(map[ResourceHandle]^Resource)
 
   return .Success
@@ -205,6 +207,10 @@ _create_resource :: proc(using rm: ^ResourceManager, resource_kind: ResourceKind
       resource_map[rh] = res
       res.kind = resource_kind
       // fmt.println("Created resource: ", rh)
+      return
+    case .Any:
+      fmt.println("Error: Cannot create resource of kind Any")
+      err = .NotYetDetailed
       return
     case:
       fmt.println("Resource type not supported:", resource_kind)
@@ -297,6 +303,8 @@ destroy_resource_any :: proc(using ctx: ^Context, rh: ResourceHandle) -> Error {
 
       destroy_resource(ctx, font.texture)
       // TODO char_data
+    case .Any:
+      fallthrough
     case:
       fmt.println("Resource type not supported:", res.kind)
       return .NotYetDetailed
@@ -354,6 +362,42 @@ _resize_framebuffer_resources :: proc(using ctx: ^Context) -> Error {
   //   vk.DestroyFramebuffer(device, f, nil);
   // }
   // _create_framebuffers(ctx);
+}
+
+// iterate_crackles :: proc(a: ^int) -> (pop: ^Pop, ok: bool) {
+//   for a^ < len(Crackles) {
+//     pop = &Crackles[a^]
+//     a^ += 1
+//     if !pop.y do continue
+    
+//     ok = true
+//     return
+//   }
+//   ok = false
+//   return
+// }
+// i: int
+// for pop in iterate_crackles(&i) {
+//   fmt.println(pop.i, pop.y)
+// }
+iterate_resources :: proc(iter_index: ^int, resource_manager: ^ResourceManager, kind: ResourceKind = .Any) \
+  -> (rh: ResourceHandle, ok: bool) {
+  // fmt.println("Iterating resources:", kind, iter_index^)
+  for i: ResourceHandle = auto_cast (INITIAL_RESOURCE_HANDLE_INDEX + iter_index^); i < resource_manager.resource_index; i += 1 {
+    res, exists := resource_manager.resource_map[i]
+    // fmt.println("i:", i, "res:", res, "ok:", ok)
+    iter_index^ += 1
+    if !exists do continue
+    
+    if kind == .Any || res.kind == kind {
+      rh = i
+      ok = true
+      // fmt.println("Returning resource:", rh, "of kind:", res.kind)
+      return
+    }
+  }
+  ok = false
+  return
 }
 
 _begin_single_time_commands :: proc(ctx: ^Context) -> Error {
