@@ -207,8 +207,9 @@ init_vulkan :: proc(using ctx: ^Context) -> Error {
   
   _init_vma(ctx) or_return
   
-  create_swap_chain(ctx)
-  create_swap_chain_image_views(ctx)
+  // create_swap_chain(ctx)
+  // create_swap_chain_image_views(ctx)
+  _handle_resized_presentation(ctx) or_return
 
   create_command_pool(ctx) or_return
   
@@ -600,7 +601,7 @@ _determine_device_suitability :: proc(using ctx: ^Context, dev: vk.PhysicalDevic
   if !features.geometryShader do return
   if !check_device_extension_support(dev) do return
   
-  _query_swap_chain_details(ctx, dev);
+  _query_swap_chain_details(ctx, dev)
   if len(swap_chain.support.formats) == 0 || len(swap_chain.support.present_modes) == 0 do return
   
   return
@@ -713,23 +714,45 @@ _init_vma :: proc(using ctx: ^Context) -> Error {
   return .Success
 }
 
-_query_swap_chain_details :: proc(using ctx: ^Context, dev: vk.PhysicalDevice) {
-  vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(dev, surface, &swap_chain.support.capabilities);
-  
-  format_count: u32;
-  vk.GetPhysicalDeviceSurfaceFormatsKHR(dev, surface, &format_count, nil);
-  if format_count > 0 {
-    swap_chain.support.formats = make([]vk.SurfaceFormatKHR, format_count);
-    vk.GetPhysicalDeviceSurfaceFormatsKHR(dev, surface, &format_count, raw_data(swap_chain.support.formats));
+_query_swap_chain_details :: proc(using ctx: ^Context, dev: vk.PhysicalDevice) -> Error {
+  vkres := vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(dev, surface, &swap_chain.support.capabilities)
+  if vkres != .SUCCESS {
+    fmt.eprintln("vk.GetPhysicalDeviceSurfaceCapabilitiesKHR:", vkres)
+    return .NotYetDetailed
   }
   
-  present_mode_count: u32;
-  vk.GetPhysicalDeviceSurfacePresentModesKHR(dev, surface, &present_mode_count, nil);
+  format_count: u32;
+  vkres = vk.GetPhysicalDeviceSurfaceFormatsKHR(dev, surface, &format_count, nil)
+  if vkres != .SUCCESS {
+    fmt.eprintln("vk.GetPhysicalDeviceSurfaceFormatsKHR:", vkres)
+    return .NotYetDetailed
+  }
+  if format_count > 0 {
+    swap_chain.support.formats = make([]vk.SurfaceFormatKHR, format_count)
+    vkres = vk.GetPhysicalDeviceSurfaceFormatsKHR(dev, surface, &format_count, raw_data(swap_chain.support.formats))
+    if vkres != .SUCCESS {
+      fmt.eprintln("vk.GetPhysicalDeviceSurfaceFormatsKHR:", vkres)
+      return .NotYetDetailed
+    }
+  }
+  
+  present_mode_count: u32
+  vkres = vk.GetPhysicalDeviceSurfacePresentModesKHR(dev, surface, &present_mode_count, nil)
+  if vkres != .SUCCESS {
+    fmt.eprintln("vk.GetPhysicalDeviceSurfacePresentModesKHR:", vkres)
+    return .NotYetDetailed
+  }
   if present_mode_count > 0
   {
     swap_chain.support.present_modes = make([]vk.PresentModeKHR, present_mode_count);
-    vk.GetPhysicalDeviceSurfacePresentModesKHR(dev, surface, &present_mode_count, raw_data(swap_chain.support.present_modes));
+    vkres = vk.GetPhysicalDeviceSurfacePresentModesKHR(dev, surface, &present_mode_count, raw_data(swap_chain.support.present_modes))
+    if vkres != .SUCCESS {
+      fmt.eprintln("vk.GetPhysicalDeviceSurfacePresentModesKHR:", vkres)
+      return .NotYetDetailed
+    }
   }
+
+  return .Success
 }
 
 choose_surface_format :: proc(using ctx: ^Context) -> vk.SurfaceFormatKHR {
@@ -770,8 +793,13 @@ choose_swap_extent :: proc(using ctx: ^Context) -> vk.Extent2D {
   
   extent := vk.Extent2D{u32(width), u32(height)};
   
-  extent.width = clamp(extent.width, swap_chain.support.capabilities.minImageExtent.width, swap_chain.support.capabilities.maxImageExtent.width);
-  extent.height = clamp(extent.height, swap_chain.support.capabilities.minImageExtent.height, swap_chain.support.capabilities.maxImageExtent.height);
+  swap_chain.extent.width = clamp(extent.width, swap_chain.support.capabilities.minImageExtent.width,
+    swap_chain.support.capabilities.maxImageExtent.width)
+  swap_chain.extent.height = clamp(extent.height, swap_chain.support.capabilities.minImageExtent.height,
+    swap_chain.support.capabilities.maxImageExtent.height)
+
+  // fmt.println("Swap Extents:", extent, "from window:", width, height, "min:", swap_chain.support.capabilities.minImageExtent,
+  //   "max:", swap_chain.support.capabilities.maxImageExtent)
   
   return extent;
 }
@@ -779,11 +807,12 @@ choose_swap_extent :: proc(using ctx: ^Context) -> vk.Extent2D {
 create_swap_chain :: proc(using ctx: ^Context) -> Error {
   using ctx.swap_chain.support;
 
+  _query_swap_chain_details(ctx, physical_device) or_return
   // TODO -- some of this is not needed to be repeated when just resizing the window (recreating the swap chain)
   // -- Not urgent
-  swap_chain.format       = choose_surface_format(ctx);
-  swap_chain.present_mode = choose_present_mode(ctx);
-  swap_chain.extent       = choose_swap_extent(ctx);
+  swap_chain.format       = choose_surface_format(ctx)
+  swap_chain.present_mode = choose_present_mode(ctx)
+  swap_chain.extent       = choose_swap_extent(ctx)
   swap_chain.image_count  = capabilities.minImageCount + 1;
   
   if capabilities.maxImageCount > 0 && swap_chain.image_count > capabilities.maxImageCount {
@@ -819,6 +848,7 @@ create_swap_chain :: proc(using ctx: ^Context) -> Error {
   create_info.clipped = true;
   create_info.oldSwapchain = vk.SwapchainKHR{};
   
+  // fmt.println("swapchain create info: extents:", create_info.imageExtent)
   if res := vk.CreateSwapchainKHR(device, &create_info, nil, &swap_chain.handle); res != .SUCCESS {
     fmt.eprintf("Error: failed to create swap chain!\n");
     return .NotYetDetailed
@@ -840,7 +870,7 @@ create_swap_chain :: proc(using ctx: ^Context) -> Error {
 create_swap_chain_image_views :: proc(using ctx: ^Context) -> Error {
   using ctx.swap_chain;
   
-  image_views = make([]vk.ImageView, len(images));
+  image_views = make([]vk.ImageView, len(images))
   
   for _, i in images
   {
@@ -1226,6 +1256,12 @@ create_sync_objects :: proc(using ctx: ^Context) -> Error {
       }
     }
 
+    if render_pass.depth_buffer_rh != 0 {
+      db: ^DepthBuffer = auto_cast _get_resource(&ctx.resource_manager, render_pass.depth_buffer_rh) or_return
+      _destroy_depth_buffer(ctx, db) or_return
+      _build_depth_buffer(ctx, db) or_return
+    }
+
     // Recreate
     _create_framebuffers(ctx, render_pass) or_return
   }
@@ -1334,8 +1370,13 @@ create_render_pass :: proc(using ctx: ^Context, config: RenderPassConfigFlags) -
   rp.config = config
 
   has_depth_buffer := .HasDepthBuffer in config
+  depth_buffer_format: vk.Format = .UNDEFINED
   if has_depth_buffer {
-    _create_depth_buffer(ctx, rp) or_return
+    rp.depth_buffer_rh = create_depth_buffer(ctx) or_return
+
+    // Obtain & Set the Created Format
+    db: ^DepthBuffer = auto_cast get_resource(&ctx.resource_manager, rp.depth_buffer_rh) or_return
+    depth_buffer_format = db.format
   }
 
   // Attachments
@@ -1351,7 +1392,7 @@ create_render_pass :: proc(using ctx: ^Context, config: RenderPassConfigFlags) -
       finalLayout = (.IsPresent in config) ? .PRESENT_SRC_KHR : .COLOR_ATTACHMENT_OPTIMAL,
     },
     vk.AttachmentDescription {
-      format = has_depth_buffer ? rp.depth_buffer.format : .UNDEFINED,
+      format = depth_buffer_format,
       samples = {._1},
       loadOp = .CLEAR,
       storeOp = .DONT_CARE,
@@ -1425,28 +1466,30 @@ create_render_pass :: proc(using ctx: ^Context, config: RenderPassConfigFlags) -
 }
 
 _create_framebuffers :: proc(using ctx: ^Context, rp: ^RenderPass) -> Error {
-  rp_has_depth_buffer := (rp.depth_buffer_rh == 0) ? false : true
+  db: ^DepthBuffer
+  if rp.depth_buffer_rh != 0 {
+    db = auto_cast get_resource(&ctx.resource_manager, rp.depth_buffer_rh) or_return
+  }
+
   rp.framebuffers = make([]vk.Framebuffer, len(swap_chain.image_views))
   for v, i in swap_chain.image_views {
-    attachments := [?]vk.ImageView{v, rp_has_depth_buffer ? rp.depth_buffer.view : 0}
+    attachments := [?]vk.ImageView{v, (db == nil) ? 0 : db.view}
 
     framebuffer_create_info := vk.FramebufferCreateInfo {
       sType = .FRAMEBUFFER_CREATE_INFO,
       renderPass = rp.render_pass,
-      attachmentCount = rp_has_depth_buffer ? 2 : 1,
+      attachmentCount = (db == nil) ? 1 : 2,
       pAttachments = &attachments[0],
       width = swap_chain.extent.width,
       height = swap_chain.extent.height,
       layers = 1,
     }
     
-    if res := vk.CreateFramebuffer(device, &framebuffer_create_info, nil, &rp.framebuffers[i]); res != .SUCCESS
-    {
+    if res := vk.CreateFramebuffer(device, &framebuffer_create_info, nil, &rp.framebuffers[i]); res != .SUCCESS {
       fmt.eprintln("Error: Failed to create framebuffer:", res)
       return .NotYetDetailed
     }
   }
-  fmt.println("TODO framebuffer resizing")
 
   return .Success
 }
@@ -1471,90 +1514,4 @@ _find_supported_format :: proc(ctx: ^Context, preferred_formats: []vk.Format, im
   }
 
   return .UNDEFINED
-}
-
-_create_depth_buffer :: proc(ctx: ^Context, rp: ^RenderPass) -> Error {
-  preferred_depth_formats := [?]vk.Format {
-    .D32_SFLOAT,
-    .D32_SFLOAT_S8_UINT,
-    .D24_UNORM_S8_UINT,
-  }
-
-  // Create the depth buffer resource
-  rp.depth_buffer_rh = _create_resource(&ctx.resource_manager, .DepthBuffer) or_return
-  rp.depth_buffer = auto_cast get_resource(&ctx.resource_manager, rp.depth_buffer_rh) or_return
-
-  // Fill it out
-  rp.depth_buffer.format = _find_supported_format(ctx, preferred_depth_formats[:], .OPTIMAL, {.DEPTH_STENCIL_ATTACHMENT})
-  if rp.depth_buffer.format == .UNDEFINED {
-    fmt.println("Error: Failed to find supported depth format")
-    return .NotYetDetailed
-  }
-
-  // Color attachment
-  image_create_info := vk.ImageCreateInfo {
-    sType = .IMAGE_CREATE_INFO,
-    imageType = .D2,
-    format = rp.depth_buffer.format,
-    extent = vk.Extent3D {
-      width = ctx.swap_chain.extent.width,
-      height = ctx.swap_chain.extent.height,
-      depth = 1,
-    },
-    mipLevels = 1,
-    arrayLayers = 1,
-    samples = {._1},
-    tiling = .OPTIMAL,
-    usage = {.DEPTH_STENCIL_ATTACHMENT},
-  }
-  
-  vkres := vk.CreateImage(ctx.device, &image_create_info, nil, &rp.depth_buffer.image)
-  if vkres != .SUCCESS {
-    fmt.println("Error: Failed to create depth buffer image:", vkres)
-    return .NotYetDetailed
-  }
-  
-  mem_requirements: vk.MemoryRequirements
-  vk.GetImageMemoryRequirements(ctx.device, rp.depth_buffer.image, &mem_requirements)
-
-  alloc_info := vk.MemoryAllocateInfo {
-    sType = .MEMORY_ALLOCATE_INFO,
-    allocationSize = mem_requirements.size,
-    memoryTypeIndex = find_memory_type(ctx, mem_requirements.memoryTypeBits, {.DEVICE_LOCAL}),
-  }
-  
-  vkres = vk.AllocateMemory(ctx.device, &alloc_info, nil, &rp.depth_buffer.memory)
-  if vkres != .SUCCESS {
-    fmt.println("Error: Failed to allocate depth buffer memory:", vkres)
-    return .NotYetDetailed
-  }
-
-  vkres = vk.BindImageMemory(ctx.device, rp.depth_buffer.image, rp.depth_buffer.memory, 0)
-  if vkres != .SUCCESS {
-    fmt.println("Error: Failed to bind depth buffer memory:", vkres)
-    return .NotYetDetailed
-  }
-
-  color_image_view_create_info := vk.ImageViewCreateInfo {
-    sType = .IMAGE_VIEW_CREATE_INFO,
-    viewType = .D2,
-    format = rp.depth_buffer.format,
-    subresourceRange = vk.ImageSubresourceRange {
-      aspectMask = {.DEPTH},
-      baseMipLevel = 0,
-      levelCount = 1,
-      baseArrayLayer = 0,
-      layerCount = 1,
-    },
-    image = rp.depth_buffer.image,
-  }
-  vkres = vk.CreateImageView(ctx.device, &color_image_view_create_info, nil, &rp.depth_buffer.view)
-  if vkres != .SUCCESS {
-    fmt.println("Error: Failed to create depth buffer image view:", vkres)
-    return .NotYetDetailed
-  }
-
-  // TODO create these with vma
-  
-  return .Success
 }

@@ -102,7 +102,9 @@ Texture :: struct {
 DepthBuffer :: struct {
   format: vk.Format,
   image: vk.Image,
-  memory: vk.DeviceMemory,
+  allocation: vma.Allocation,
+  allocation_info: vma.AllocationInfo,
+  size:   vk.DeviceSize,
   view: vk.ImageView,
 }
 
@@ -123,7 +125,6 @@ RenderPass :: struct {
   config: RenderPassConfigFlags,
   render_pass: vk.RenderPass, // TODO change to vk_handle
   framebuffers: []vk.Framebuffer,
-  depth_buffer: ^DepthBuffer,
   depth_buffer_rh: ResourceHandle,
 }
 
@@ -279,17 +280,14 @@ destroy_resource_any :: proc(using ctx: ^Context, rh: ResourceHandle) -> Error {
         delete_slice(render_pass.framebuffers)
       }
 
-      if render_pass.depth_buffer_rh > 0 {
+      if render_pass.depth_buffer_rh != 0 {
         destroy_resource(ctx, render_pass.depth_buffer_rh)
       }
 
       vk.DestroyRenderPass(device, render_pass.render_pass, nil)
     case .DepthBuffer:
       db: ^DepthBuffer = auto_cast &res.data
-
-      vk.DestroyImageView(device, db.view, nil)
-      vk.DestroyImage(device, db.image, nil)
-      vk.FreeMemory(device, db.memory, nil)
+      _destroy_depth_buffer(ctx, db)
     case .StampRenderResource:
       tdr: ^StampRenderResource = auto_cast &res.data
 
@@ -803,6 +801,94 @@ create_texture :: proc(using ctx: ^Context, tex_width: i32, tex_height: i32, tex
     return
   }
 
+  return
+}
+
+create_depth_buffer :: proc(ctx: ^Context) -> (rh: ResourceHandle, err: Error) {
+  // Create the depth buffer resource
+  rh = _create_resource(&ctx.resource_manager, .DepthBuffer) or_return
+  db: ^DepthBuffer = auto_cast _get_resource(&ctx.resource_manager, rh) or_return
+
+  err = _build_depth_buffer(ctx, db)
+  return
+}
+
+@(private) _destroy_depth_buffer :: proc(using ctx: ^Context, db: ^DepthBuffer) -> (err: Error) {
+  vma.DestroyImage(vma_allocator, db.image, db.allocation)
+
+  vk.DestroyImageView(ctx.device, db.view, nil)
+  return
+}
+
+@(private) _build_depth_buffer :: proc(ctx: ^Context, db: ^DepthBuffer) -> (err: Error) {
+  // TODO -- Allow custom depth formats?
+  preferred_depth_formats := [?]vk.Format {
+    .D32_SFLOAT,
+    .D32_SFLOAT_S8_UINT,
+    .D24_UNORM_S8_UINT,
+  }
+
+  // Fill it out
+  db.format = _find_supported_format(ctx, preferred_depth_formats[:], .OPTIMAL, {.DEPTH_STENCIL_ATTACHMENT})
+  if db.format == .UNDEFINED {
+    fmt.println("Error: Failed to find supported depth format")
+    err = .NotYetDetailed
+    return
+  }
+
+  // Create the image
+  image_create_info := vk.ImageCreateInfo {
+    sType = .IMAGE_CREATE_INFO,
+    imageType = .D2,
+    format = db.format,
+    extent = vk.Extent3D {
+      width = ctx.swap_chain.extent.width,
+      height = ctx.swap_chain.extent.height,
+      depth = 1,
+    },
+    mipLevels = 1,
+    arrayLayers = 1,
+    samples = {._1},
+    tiling = .OPTIMAL,
+    initialLayout = .UNDEFINED,
+    usage = {.DEPTH_STENCIL_ATTACHMENT},
+  }
+
+  // VMA Allocation Info
+  alloc_create_info := vma.AllocationCreateInfo {
+    usage = .AUTO_PREFER_DEVICE,
+    flags = {.DEDICATED_MEMORY},
+    priority = 1.0,
+  }
+
+  vkres := vma.CreateImage(ctx.vma_allocator, &image_create_info, &alloc_create_info, &db.image, &db.allocation, nil)
+  if vkres != .SUCCESS {
+    fmt.eprintln("build_depth_buffer> vma.CreateImage failed:", vkres)
+    err = .NotYetDetailed
+    return
+  }
+
+  // Create the Image View
+  image_view_create_info := vk.ImageViewCreateInfo {
+    sType = .IMAGE_VIEW_CREATE_INFO,
+    viewType = .D2,
+    format = db.format,
+    subresourceRange = vk.ImageSubresourceRange {
+      aspectMask = {.DEPTH},
+      baseMipLevel = 0,
+      levelCount = 1,
+      baseArrayLayer = 0,
+      layerCount = 1,
+    },
+    image = db.image,
+  }
+  vkres = vk.CreateImageView(ctx.device, &image_view_create_info, nil, &db.view)
+  if vkres != .SUCCESS {
+    fmt.println("Error: Failed to create depth buffer image view:", vkres)
+    err = .NotYetDetailed
+    return
+  }
+  
   return
 }
 

@@ -53,18 +53,21 @@ begin_present :: proc(using ctx: ^Context) -> (render_context: ^RenderContext, e
   defer sync.unlock(&render_context.mutex)
 
   // Acquire the next image
-  fmt.println("into acquire next image")
+  r := 0
   acquire_loop: for {
+    r += 1
+    if r >= 2 {
+      fmt.println("r:", r)
+    }
     // Setup the render context
     vk.WaitForFences(device, 1, &render_context.in_flight, true, max(u64))
   
     vkres := vk.AcquireNextImageKHR(device, swap_chain.handle, max(u64), render_context.image_available,
       {}, &render_context.swap_chain_index)
-    fmt.println("vkres: ", vkres)
 
     if vkres == .ERROR_OUT_OF_DATE_KHR || framebuffer_resized {
       framebuffer_resized = false
-      fmt.println("handle framebuffer resize")
+      // fmt.println("handle framebuffer resize")
       _handle_resized_presentation(ctx) or_return
       continue acquire_loop
     }
@@ -76,7 +79,6 @@ begin_present :: proc(using ctx: ^Context) -> (render_context: ^RenderContext, e
 
     break
   }
-  fmt.println("exit acquire next image")
 
   // -- The swapchain references
   render_context.image = swap_chain.images[render_context.swap_chain_index]
