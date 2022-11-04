@@ -53,31 +53,38 @@ begin_present :: proc(using ctx: ^Context) -> (render_context: ^RenderContext, e
   defer sync.unlock(&render_context.mutex)
 
   // Acquire the next image
-  r := 0
-  acquire_loop: for {
-    r += 1
-    if r >= 2 {
-      fmt.println("r:", r)
-    }
-    // Setup the render context
-    vk.WaitForFences(device, 1, &render_context.in_flight, true, max(u64))
-  
-    vkres := vk.AcquireNextImageKHR(device, swap_chain.handle, max(u64), render_context.image_available,
-      {}, &render_context.swap_chain_index)
-
-    if vkres == .ERROR_OUT_OF_DATE_KHR || framebuffer_resized {
-      framebuffer_resized = false
-      // fmt.println("handle framebuffer resize")
-      _handle_resized_presentation(ctx) or_return
-      continue acquire_loop
-    }
-    if vkres != .SUCCESS && vkres != .SUBOPTIMAL_KHR {
-      fmt.eprintln("Error: Failed to acquire swap chain image:", vkres)
+  acquire_loop: for r in 0..<3 {
+    if r == 2 {
+      fmt.eprintln("Error: Failed to acquire swap chain image (3 times)")
       err = .NotYetDetailed
       return
     }
 
-    break
+    // Setup the render context
+    vk.WaitForFences(device, 1, &render_context.in_flight, true, max(u64))
+  
+    TEN_MILLISECONDS_ns: u64 = 10000000
+    vkres := vk.AcquireNextImageKHR(device, swap_chain.handle, TEN_MILLISECONDS_ns, render_context.image_available,
+      {}, &render_context.swap_chain_index)
+    if framebuffer_resized do vkres = .ERROR_OUT_OF_DATE_KHR
+
+    #partial switch vkres {
+      case .ERROR_OUT_OF_DATE_KHR:
+        framebuffer_resized = false
+        // fmt.println("handle framebuffer resize")
+        _handle_resized_presentation(ctx) or_return
+        continue acquire_loop
+      case .SUBOPTIMAL_KHR, .SUCCESS:
+        break acquire_loop
+      case .TIMEOUT:
+        fmt.eprintln("Error: Failed to acquire swap chain image (timeout) TODO -- implement soft handling?")
+        err = .NotYetDetailed
+        return
+      case:
+        fmt.eprintln("Error: Failed to acquire swap chain image:", vkres)
+        err = .NotYetDetailed
+        return
+    }
   }
 
   // -- The swapchain references

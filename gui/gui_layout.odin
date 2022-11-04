@@ -13,6 +13,11 @@ LayoutExtentRestraint :: enum(u8) {
   Vertical,
 }
 
+ProcDetermineControlExtents :: proc(ctx: ^vi.Context, control: ^Control, restraints: LayoutExtentRestraints)
+ProcHandleGUIEvent :: proc(ctx: ^vi.Context, event: ^sdl2.Event) -> (handled: bool, err: vi.Error)
+ProcUpdateControlLayout :: proc(control: ^Control, available_area: vi.Rectf, update_x: bool = true, update_y: bool = true,
+  update_width: bool = true, update_height: bool = true, update_children: bool = true)
+
 handle_gui_event :: proc(gui: ^GUIRoot, event: ^sdl2.Event) -> (handled: bool, err: vi.Error) {
   return
 }
@@ -20,7 +25,7 @@ handle_gui_event :: proc(gui: ^GUIRoot, event: ^sdl2.Event) -> (handled: bool, e
 update_gui :: proc(gui_root: ^GUIRoot) {
   if gui_root.children == nil do return
 
-  _determine_control_and_children_extents(gui_root.vctx, auto_cast gui_root, {})
+  gui_root._delegates.determine_control_extents(gui_root.vctx, auto_cast gui_root, {})
 
   // Update the layout of each child
   for child in gui_root.children {
@@ -28,7 +33,7 @@ update_gui :: proc(gui_root: ^GUIRoot) {
   }
 }
 
-_determine_control_extents :: proc(control: ^Control, restraints: LayoutExtentRestraints) {
+_determine_control_extents :: proc(ctx: ^vi.Context, control: ^Control, restraints: LayoutExtentRestraints) {
   MAX_EXTENT_VALUE :: 1000000
   layout := &control._layout
 
@@ -182,7 +187,7 @@ _determine_control_and_children_extents :: proc(ctx: ^vi.Context, control: ^Cont
   if .TextRestrained in control.properties {
     _determine_text_restrained_control_extents(ctx, control, restraints)
   } else {
-    _determine_control_extents(control, restraints)
+    _determine_control_extents(ctx, control, restraints)
   }
 
   // Containers

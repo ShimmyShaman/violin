@@ -7,39 +7,30 @@ import "vendor:sdl2"
 
 import vi "violin:vsr"
 
-render_gui :: proc(using rctx: ^vi.RenderContext, stamprr: vi.StampRenderResourceHandle, gui_root: ^GUIRoot) -> vi.Error {
-  // Update the layout of each child
-  return _render_container_control(rctx, stamprr, gui_root)
+ProcRenderControl :: proc (using grc: ^GUIRenderContext, control: ^_ControlInfo) -> (err: vi.Error)
+
+GUIRenderContext :: struct {
+  gui_root: ^GUIRoot,
+  rctx: ^vi.RenderContext,
+  stamprr: vi.StampRenderResourceHandle,
 }
 
-_render_container_control :: proc(using rctx: ^vi.RenderContext, stamprr: vi.StampRenderResourceHandle, container: ^_ContainerControlInfo) -> (err: vi.Error) {
+render_gui :: proc(using rctx: ^vi.RenderContext, stamprr: vi.StampRenderResourceHandle, gui_root: ^GUIRoot) -> vi.Error {
+  grc := GUIRenderContext {
+    gui_root = gui_root,
+    rctx = rctx,
+    stamprr = stamprr,
+  }
+
+  // Update the layout of each child
+  return _render_container_control(&grc, gui_root)
+}
+
+_render_container_control :: proc(using grc: ^GUIRenderContext, container: ^_ContainerControlInfo) -> (err: vi.Error) {
   if container.children == nil do return
 
   for child in container.children {
-    switch child.ctype {
-      case .Label:
-        _render_label_control(rctx, stamprr, auto_cast child) or_return
-      case .GUIRoot, .Button, .Textbox:
-        fallthrough
-      case:
-        fmt.println("Unknown child control type:", child.ctype)
-        err = .NotYetImplemented
-        return
-    }
+    child._delegates.render_control(grc, child)
   }
-  return
-}
-
-_render_label_control :: proc(using rctx: ^vi.RenderContext, stamprr: vi.StampRenderResourceHandle, label: ^Label) -> (err: vi.Error) {
-  if label.background_color.a > 0.0 {
-    vi.stamp_colored_rect(rctx, stamprr, &label.bounds, &label.background_color) or_return
-  }
-
-  if label.text != "" && label.font_color.a > 0.0 {
-    // fmt.print("Rendering text:", label.text, "at:", label.bounds.x, "x", label.bounds.y + label.bounds.height)
-    // fmt.println(" with color:", label.font_color)
-    vi.stamp_text(rctx, stamprr, label.font, label.text, label.bounds.x, label.bounds.y + label.bounds.height, &label.font_color) or_return
-  }
-
   return
 }
