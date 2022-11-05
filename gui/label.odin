@@ -36,8 +36,10 @@ create_label :: proc(name_id: string = "Label") -> (label: ^Label, err: vi.Error
   label.id = name_id
   label.visible = true
 
-  label._delegates.determine_control_extents = _determine_control_extents
+  label._delegates.determine_control_extents = _determine_label_extents
   label._delegates.render_control = _render_label_control
+  label._delegates.update_control_layout = update_control_layout
+  label._delegates.destroy_control = _destroy_label_control
 
   label.properties = { .TextRestrained }
   // label.bounds = vi.Rectf{0.0, 0.0, 80.0, 20.0}
@@ -63,12 +65,12 @@ create_label :: proc(name_id: string = "Label") -> (label: ^Label, err: vi.Error
   return
 }
 
-_render_label_control :: proc(using grc: ^GUIRenderContext, control: ^_ControlInfo) -> (err: vi.Error) {
+@(private) _render_label_control :: proc(using grc: ^GUIRenderContext, control: ^_ControlInfo) -> (err: vi.Error) {
   label: ^Label = auto_cast control
 
-  fmt.println("Rendering label: ", label.font)
+  // fmt.println("Rendering label: ", label.font)
   label_font := label.font if label.font != auto_cast 0 else gui_root.default_font
-  fmt.println("label: ", label.font, "&& label_font: ", label_font)
+  // fmt.println("label: ", label.font, "&& label_font: ", label_font)
 
   if label.background_color.a > 0.0 {
     vi.stamp_colored_rect(rctx, stamprr, &label.bounds, &label.background_color) or_return
@@ -81,4 +83,19 @@ _render_label_control :: proc(using grc: ^GUIRenderContext, control: ^_ControlIn
   }
 
   return
+}
+
+@(private) _determine_label_extents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints) -> vi.Error {
+  label: ^Label = auto_cast control
+
+  label_font := label.font if label.font != auto_cast 0 else gui_root.default_font
+
+  text_width, text_height := vi.determine_text_display_dimensions(gui_root.vctx, label_font, label.text) or_return
+
+  return determine_text_restrained_control_extents(gui_root, control, restraints, text_width, text_height)
+}
+
+@(private) _destroy_label_control :: proc(ctx: ^vi.Context, control: ^Control) {
+  label: ^Label = auto_cast control
+  if label.font != 0 do vi.destroy_font(ctx, label.font)
 }

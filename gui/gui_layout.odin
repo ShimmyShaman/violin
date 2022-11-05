@@ -1,5 +1,6 @@
 package violin_gui
 
+import "core:c"
 import "core:fmt"
 import "core:mem"
 
@@ -13,8 +14,8 @@ LayoutExtentRestraint :: enum(u8) {
   Vertical,
 }
 
-ProcDetermineControlExtents :: proc(ctx: ^vi.Context, control: ^Control, restraints: LayoutExtentRestraints)
-ProcHandleGUIEvent :: proc(ctx: ^vi.Context, event: ^sdl2.Event) -> (handled: bool, err: vi.Error)
+ProcDetermineControlExtents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints) -> vi.Error
+ProcHandleGUIEvent :: proc(gui_root: ^GUIRoot, event: ^sdl2.Event) -> (handled: bool, err: vi.Error)
 ProcUpdateControlLayout :: proc(control: ^Control, available_area: vi.Rectf, update_x: bool = true, update_y: bool = true,
   update_width: bool = true, update_height: bool = true, update_children: bool = true)
 
@@ -25,15 +26,15 @@ handle_gui_event :: proc(gui: ^GUIRoot, event: ^sdl2.Event) -> (handled: bool, e
 update_gui :: proc(gui_root: ^GUIRoot) {
   if gui_root.children == nil do return
 
-  gui_root._delegates.determine_control_extents(gui_root.vctx, auto_cast gui_root, {})
+  gui_root._delegates.determine_control_extents(gui_root, auto_cast gui_root, {})
 
   // Update the layout of each child
-  for child in gui_root.children {
-    _update_control_layout(child, gui_root.bounds)
-  }
+  w, h: c.int
+  sdl2.GetWindowSize(gui_root.vctx.window, &w, &h) // TODO -- this should be updated by swapchain resize callback instead?
+  gui_root._delegates.update_control_layout(auto_cast gui_root, vi.Rectf{0, 0, auto_cast w, auto_cast h})
 }
 
-_determine_control_extents :: proc(ctx: ^vi.Context, control: ^Control, restraints: LayoutExtentRestraints) {
+determine_control_extents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints) -> vi.Error {
   MAX_EXTENT_VALUE :: 1000000
   layout := &control._layout
 
@@ -101,28 +102,24 @@ _determine_control_extents :: proc(ctx: ^vi.Context, control: ^Control, restrain
     }
   }
   // fmt.println("Determined extents for control: ", control.ctype, " - ", layout.determined_width_extent, "x", layout.determined_height_extent)
-}
 
-_get_control_text_dimensions :: proc(ctx: ^vi.Context, control: ^Control) -> (width: f32, height: f32, err: vi.Error) {
-  // Obtain the text dimensions
-  text: string
-  font: vi.FontResourceHandle
-  #partial switch control.ctype {
-    case .Label:
-      text = (cast(^Label) control).text
-      font = (cast(^Label) control).font
-    case:
-      fmt.eprintln("ERROR:_determine_text_restrained_control_extents> Unhandled control type:", control.ctype)
-      // TODO - what do now?
-      return
+  if .Container in control.properties {
+    // Determine extents for each child
+    container: ^_ContainerControlInfo = auto_cast control
+    if container.children != nil {
+      for child in container.children {
+        child._delegates.determine_control_extents(gui_root, child, restraints)
+      }
+    }
   }
-  return vi.determine_text_display_dimensions(ctx, font, text)
+
+  return .Success
 }
 
-_determine_text_restrained_control_extents :: proc(ctx: ^vi.Context, control: ^Control, restraints: LayoutExtentRestraints) -> vi.Error {
+determine_text_restrained_control_extents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints,
+  text_width, text_height: f32) -> vi.Error {
   layout := &control._layout
 
-  str_width, str_height := _get_control_text_dimensions(ctx, control) or_return
   // fmt.println("Determined text dimensions for control: ", control.ctype, " - ", str_width, "x", str_height)
 
   // Width
@@ -132,11 +129,11 @@ _determine_text_restrained_control_extents :: proc(ctx: ^vi.Context, control: ^C
   }
   else {
     if .Horizontal in restraints {
-      layout.determined_width_extent = max(max(layout.min_width, str_width), 0.0)
+      layout.determined_width_extent = max(max(layout.min_width, text_width), 0.0)
     }
     else {
       // Padding adjusted from available
-      layout.determined_width_extent = str_width
+      layout.determined_width_extent = text_width
 
       // Specified bounds
       if layout.min_width != 0 && layout.determined_width_extent < layout.min_width {
@@ -159,11 +156,11 @@ _determine_text_restrained_control_extents :: proc(ctx: ^vi.Context, control: ^C
   }
   else {
     if .Vertical in restraints {
-      layout.determined_height_extent = max(max(layout.min_height, str_height), 0.0)
+      layout.determined_height_extent = max(max(layout.min_height, text_height), 0.0)
     }
     else {
       // Padding adjusted from available
-      layout.determined_height_extent = str_height
+      layout.determined_height_extent = text_height
 
       // Specified bounds
       if layout.min_height != 0 && layout.determined_height_extent < layout.min_height {
@@ -179,32 +176,23 @@ _determine_text_restrained_control_extents :: proc(ctx: ^vi.Context, control: ^C
     }
   }
 
+  if .Container in control.properties {
+    // Determine extents for each child
+    container: ^_ContainerControlInfo = auto_cast control
+    if container.children != nil {
+      for child in container.children {
+        child._delegates.determine_control_extents(gui_root, child, restraints)
+      }
+    }
+  }
+
   // fmt.println("Determined extents for control: ", control.ctype, " - ", layout.determined_width_extent, "x", layout.determined_height_extent)
   return .Success
 }
 
-_determine_control_and_children_extents :: proc(ctx: ^vi.Context, control: ^Control, restraints: LayoutExtentRestraints) {
-  if .TextRestrained in control.properties {
-    _determine_text_restrained_control_extents(ctx, control, restraints)
-  } else {
-    _determine_control_extents(ctx, control, restraints)
-  }
-
-  // Containers
-  if .Container not_in control.properties do return 
-  
-  container: ^_ContainerControlInfo = auto_cast control
-  if container.children == nil do return
-
-  // Foreach container child
-  for child in container.children {
-    _determine_control_and_children_extents(ctx, child, restraints)
-  }
-}
-
 // int mca_update_typical_node_layout_partially(mc_node *node, mc_rectf const *available_area, bool update_x,
 //   bool update_y, bool update_width, bool update_height, bool update_children)
-_update_control_layout :: proc(control: ^Control, available_area: vi.Rectf, update_x: bool = true, update_y: bool = true,
+update_control_layout :: proc(control: ^Control, available_area: vi.Rectf, update_x: bool = true, update_y: bool = true,
     update_width: bool = true, update_height: bool = true, update_children: bool = true) {
 
   next: vi.Rectf
@@ -295,20 +283,14 @@ _update_control_layout :: proc(control: ^Control, available_area: vi.Rectf, upda
   // fmt.println("Determined layout for control: ", control.ctype, " - ", control.bounds)
 
   // Children
-  if !update_children do return
-  
-  switch control.ctype {
-    // Non-container controls have no children
-    case .Button, .Label, .Textbox:
-      return
-    case .GUIRoot: // TODO -- GUIRoot should not be passed to this method, place it here till another container control is created
-      as_parent: ^_ContainerControlInfo = cast(^_ContainerControlInfo)control
-      if as_parent.children != nil {
-        for child in as_parent.children {
-          fmt.println("Updating child: ", child)
-          // _update_control_layout(child, control.bounds)
-        }
+  if .Container in control.properties {
+    // Determine extents for each child
+    container: ^_ContainerControlInfo = auto_cast control
+    if container.children != nil {
+      for child in container.children {
+        child._delegates.update_control_layout(child, control.bounds)
       }
+    }
   }
 
   return

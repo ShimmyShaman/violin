@@ -23,14 +23,11 @@ render_gui :: proc(using rctx: ^vi.RenderContext, stamprr: vi.StampRenderResourc
   }
 
   // Update the layout of each child
-  return _render_container_control(&grc, gui_root)
-}
-
-_render_container_control :: proc(using grc: ^GUIRenderContext, container: ^_ContainerControlInfo) -> (err: vi.Error) {
-  if container.children == nil do return
-
-  for child in container.children {
-    child._delegates.render_control(grc, child)
+  if gui_root.children != nil {
+    for child in gui_root.children {
+      child._delegates.render_control(&grc, child) or_return
+    }
   }
-  return
+
+  return .Success
 }

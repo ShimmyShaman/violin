@@ -58,6 +58,7 @@ _ControlDelegates :: struct {
   determine_control_extents: ProcDetermineControlExtents,
   render_control: ProcRenderControl,
   destroy_control: ProcDestroyControl,
+  update_control_layout: ProcUpdateControlLayout,
 }
 
 _ControlInfo :: struct {
@@ -110,7 +111,10 @@ create_gui_root :: proc(ctx: ^vi.Context, default_font_path: string = DEFAULT_FO
   gui_root = new(GUIRoot)
   gui_root.vctx = ctx
 
-  gui_root._delegates.determine_control_extents = _determine_control_and_children_extents
+  gui_root._delegates.determine_control_extents = determine_control_extents
+  gui_root._delegates.render_control = nil
+  gui_root._delegates.destroy_control = nil
+  gui_root._delegates.update_control_layout = update_control_layout
 
   gui_root.ctype = .GUIRoot
   gui_root.id = "GUIRoot"
