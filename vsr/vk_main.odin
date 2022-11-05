@@ -35,11 +35,12 @@ Error :: enum {
   ResourceNotFound,
   InvalidState,
   VulkanPresentationResized,
+  MAX_EXTENT_VALUE = 1000,
 }
 
 Context :: struct {
   violin_package_relative_path: string,
-  window:   ^sdl2.Window,
+  window: ^sdl2.Window,
 
   vma_allocator: vma.Allocator,
   resource_manager: ResourceManager,
