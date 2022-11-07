@@ -235,15 +235,6 @@ quit :: proc(using ctx: ^Context) {
   free(ctx)
 }
 
-destroy_render_program :: proc(using ctx: ^Context, render_program: ^RenderProgram) {
-  vk.DeviceWaitIdle(device); // TODO -- will 'probably' need better synchronization
-
-  if render_program.pipeline.handle != 0 do vk.DestroyPipeline(device, render_program.pipeline.handle, nil)
-  if render_program.pipeline.layout != 0 do vk.DestroyPipelineLayout(device, render_program.pipeline.layout, nil)
-  
-  if render_program.descriptor_layout != 0 do vk.DestroyDescriptorSetLayout(device, render_program.descriptor_layout, nil)
-}
-
 deinit_vulkan :: proc(using ctx: ^Context) {
   cleanup_swap_chain(ctx);
   
@@ -270,7 +261,7 @@ deinit_vulkan :: proc(using ctx: ^Context) {
 /*
   Compiles the shader from the src path relative to SHADER_DIRECTORY
 */
-compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8) {
+compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8, err: Error) {
   data = nil
 
   // Check
@@ -278,6 +269,7 @@ compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8
   glslc_LOCATION :: "/media/bug/rome/prog/shaderc/bin/glslc"
   if !os.exists(glslc_LOCATION) {
     fmt.println("ERROR: need to set glslc_LOCATION to where it is (or make it accessable)")
+    err = .NotYetDetailed
     return
   }
   if !os.exists(CACHE_DIRECTORY) {
@@ -297,6 +289,7 @@ compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8
   ext_cache_path, maerr := strings.concatenate_safe([]string { CACHE_DIRECTORY, shader_file_name, ".spv" })
   if maerr != mem.Allocator_Error.None {
     fmt.println("compile_shader > cache strings.concatenate_safe Memory Allocator Error:", maerr)
+    err = .NotYetDetailed
     return
   }
   defer delete(ext_cache_path)
@@ -310,6 +303,7 @@ compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8
     fmt.printf("Error compile_shader(): couldn't open shader path='%s' set relative_src_path accordingly\n", shader_src_path)
     fmt.println("--CurrentWorkingDirectory:", os.get_current_directory())
     libc.perror("File I/O Error:")
+    err = .NotYetDetailed
     return
   }
   defer os.close(h_src)
@@ -348,6 +342,8 @@ compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8
     cmd: string
     cmd, maerr = strings.concatenate_safe([]string { glslc_LOCATION, " -o ", ext_cache_path, " ", shader_src_path }) // -mfmt=bin
     if maerr != .None {
+      fmt.println("strings.concatenate_safe: mem allocator error")
+      err = .NotYetDetailed
       return
     }
     defer delete(cmd)
@@ -361,6 +357,7 @@ compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8
     h_cache, errno = os.open(ext_cache_path)
     if errno != os.ERROR_NONE {
       fmt.println("Couldn't obtain compiled shader file:", ext_cache_path)
+      err = .NotYetDetailed
       return
     }
     cache_file_info, errno = os.stat(ext_cache_path)
@@ -371,6 +368,7 @@ compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8
   data, read_success = os.read_entire_file_from_handle(h_cache)
   if !read_success {
     fmt.println("Could not read full file from cache file handle:", ext_cache_path, " >", h_cache)
+    err = .NotYetDetailed
     return
   }
 
@@ -903,15 +901,15 @@ create_graphics_pipeline :: proc(ctx: ^Context, pipeline_config: ^PipelineCreate
   vertex_attributes: []vk.VertexInputAttributeDescription, descriptor_layout: [^]vk.DescriptorSetLayout) -> (pipeline: Pipeline, err: Error) {
   // fmt.println("Creating Graphics Pipeline...", pipeline_config.render_pass)
   // Create Shader Modules
-  vs_code := compile_shader(pipeline_config.vertex_shader_filepath, .Vertex);
-  fs_code := compile_shader(pipeline_config.fragment_shader_filepath, .Fragment);
+  vs_code := compile_shader(pipeline_config.vertex_shader_filepath, .Vertex) or_return
+  fs_code := compile_shader(pipeline_config.fragment_shader_filepath, .Fragment) or_return
   defer {
-    delete(vs_code);
-    delete(fs_code);
+    delete(vs_code)
+    delete(fs_code)
   }
   
-  vs_shader := create_shader_module(ctx, vs_code);
-  fs_shader := create_shader_module(ctx, fs_code);
+  vs_shader := create_shader_module(ctx, vs_code) or_return
+  fs_shader := create_shader_module(ctx, fs_code) or_return
   defer {
     vk.DestroyShaderModule(ctx.device, vs_shader, nil);
     vk.DestroyShaderModule(ctx.device, fs_shader, nil);
@@ -1068,20 +1066,20 @@ create_graphics_pipeline :: proc(ctx: ^Context, pipeline_config: ^PipelineCreate
   return
 }
 
-create_shader_module :: proc(using ctx: ^Context, code: []u8) -> vk.ShaderModule {
+create_shader_module :: proc(using ctx: ^Context, code: []u8) -> (shader: vk.ShaderModule, err: Error) {
   create_info: vk.ShaderModuleCreateInfo;
   create_info.sType = .SHADER_MODULE_CREATE_INFO;
   create_info.codeSize = len(code);
   create_info.pCode = cast(^u32)raw_data(code);
   
-  shader: vk.ShaderModule;
   if res := vk.CreateShaderModule(device, &create_info, nil, &shader); res != .SUCCESS
   {
-    fmt.eprintf("Error: Could not create shader module!\n");
-    os.exit(1);
+    fmt.eprintf("Error: Could not create shader module!\n")
+    err = .NotYetDetailed
+    return
   }
   
-  return shader;
+  return
 }
 
 create_command_pool :: proc(using ctx: ^Context) -> Error {
@@ -1259,7 +1257,7 @@ create_sync_objects :: proc(using ctx: ^Context) -> Error {
 
     if render_pass.depth_buffer_rh != 0 {
       db: ^DepthBuffer = auto_cast _get_resource(&ctx.resource_manager, render_pass.depth_buffer_rh) or_return
-      _destroy_depth_buffer(ctx, db) or_return
+      _dispose_depth_buffer_resources(ctx, db) or_return
       _build_depth_buffer(ctx, db) or_return
     }
 

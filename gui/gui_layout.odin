@@ -23,15 +23,17 @@ handle_gui_event :: proc(gui: ^GUIRoot, event: ^sdl2.Event) -> (handled: bool, e
   return
 }
 
-update_gui :: proc(gui_root: ^GUIRoot) {
+update_gui :: proc(gui_root: ^GUIRoot) -> (err: vi.Error) {
   if gui_root.children == nil do return
 
-  gui_root._delegates.determine_control_extents(gui_root, auto_cast gui_root, {})
+  gui_root._delegates.determine_control_extents(gui_root, auto_cast gui_root, {}) or_return
 
   // Update the layout of each child
   w, h: c.int
   sdl2.GetWindowSize(gui_root.vctx.window, &w, &h) // TODO -- this should be updated by swapchain resize callback instead?
   gui_root._delegates.update_control_layout(auto_cast gui_root, vi.Rectf{0, 0, auto_cast w, auto_cast h})
+
+  return
 }
 
 determine_control_extents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints) -> vi.Error {
