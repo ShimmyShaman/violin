@@ -123,7 +123,7 @@ init_stamp_batch_renderer :: proc(using ctx: ^Context, render_pass_config: Rende
   uniform_buffer_size := 128 * 256) -> (stamph: StampRenderResourceHandle, err: Error) {
   // Create the resource
   stamph = auto_cast _create_resource(&resource_manager, .StampRenderResource) or_return
-  stampr: ^StampRenderResource = auto_cast _get_resource(&resource_manager, auto_cast stamph) or_return
+  stampr: ^StampRenderResource = auto_cast get_resource(&resource_manager, stamph) or_return
 
   // Create the render pass
   // HasPreviousColorPass = 0,
@@ -211,8 +211,8 @@ init_stamp_batch_renderer :: proc(using ctx: ^Context, render_pass_config: Rende
   }
   render_program_create_info := RenderProgramCreateInfo {
     pipeline_config = PipelineCreateConfig {
-      vertex_shader_filepath = get_shader_path(ctx.violin_package_relative_path, "violin/shaders/colored_rect.vert") or_return,
-      fragment_shader_filepath = get_shader_path(ctx.violin_package_relative_path, "violin/shaders/colored_rect.frag") or_return,
+      vertex_shader_filepath = get_shader_path(ctx.__settings.violin_package_relative_path, "violin/shaders/colored_rect.vert") or_return,
+      fragment_shader_filepath = get_shader_path(ctx.__settings.violin_package_relative_path, "violin/shaders/colored_rect.frag") or_return,
       render_pass = stampr.render_pass,
     },
     vertex_size = size_of(Vertex2),
@@ -236,8 +236,8 @@ init_stamp_batch_renderer :: proc(using ctx: ^Context, render_pass_config: Rende
   }
   render_program_create_info = RenderProgramCreateInfo {
     pipeline_config = PipelineCreateConfig {
-      vertex_shader_filepath = get_shader_path(ctx.violin_package_relative_path, "violin/shaders/textured_rect.vert") or_return,
-      fragment_shader_filepath = get_shader_path(ctx.violin_package_relative_path, "violin/shaders/textured_rect.frag") or_return,
+      vertex_shader_filepath = get_shader_path(ctx.__settings.violin_package_relative_path, "violin/shaders/textured_rect.vert") or_return,
+      fragment_shader_filepath = get_shader_path(ctx.__settings.violin_package_relative_path, "violin/shaders/textured_rect.frag") or_return,
       render_pass = stampr.render_pass,
     },
     vertex_size = size_of(Vertex2UV),
@@ -248,8 +248,8 @@ init_stamp_batch_renderer :: proc(using ctx: ^Context, render_pass_config: Rende
 
   render_program_create_info = RenderProgramCreateInfo {
     pipeline_config = PipelineCreateConfig {
-      vertex_shader_filepath = get_shader_path(ctx.violin_package_relative_path, "violin/shaders/stb_font.vert") or_return,
-      fragment_shader_filepath = get_shader_path(ctx.violin_package_relative_path, "violin/shaders/stb_font.frag") or_return,
+      vertex_shader_filepath = get_shader_path(ctx.__settings.violin_package_relative_path, "violin/shaders/stb_font.vert") or_return,
+      fragment_shader_filepath = get_shader_path(ctx.__settings.violin_package_relative_path, "violin/shaders/stb_font.frag") or_return,
       render_pass = stampr.render_pass,
     },
     vertex_size = size_of(Vertex2UV),
@@ -264,7 +264,7 @@ init_stamp_batch_renderer :: proc(using ctx: ^Context, render_pass_config: Rende
 
   // Ensure the created uniform buffer is HOST_VISIBLE for dynamic copying
   {
-    ubr: ^Buffer = auto_cast _get_resource(&resource_manager, auto_cast stampr.uniform_buffer.rh) or_return
+    ubr: ^Buffer = auto_cast get_resource(&resource_manager, stampr.uniform_buffer.rh) or_return
     mem_property_flags: vk.MemoryPropertyFlags
     vma.GetAllocationMemoryProperties(vma_allocator, ubr.allocation, &mem_property_flags)
     if vk.MemoryPropertyFlag.HOST_VISIBLE not_in mem_property_flags {
@@ -305,9 +305,9 @@ __release_stamp_render_resource :: proc(using ctx: ^Context, tdr: ^StampRenderRe
   destroy_vertex_buffer(ctx, tdr.textured_rect_vertex_buffer)
   destroy_resource_any(ctx, tdr.uniform_buffer.rh)
 
-  destroy_render_program(ctx, &tdr.stb_font_render_program)
-  destroy_render_program(ctx, &tdr.textured_rect_render_program)
-  destroy_render_program(ctx, &tdr.colored_rect_render_program)
+  destroy_render_program(ctx, tdr.stb_font_render_program)
+  destroy_render_program(ctx, tdr.textured_rect_render_program)
+  destroy_render_program(ctx, tdr.colored_rect_render_program)
 
   // if tdr.clear_render_pass != 0 do destroy_render_pass(ctx, tdr.clear_render_pass)
   destroy_render_pass(ctx, tdr.render_pass)
@@ -315,7 +315,7 @@ __release_stamp_render_resource :: proc(using ctx: ^Context, tdr: ^StampRenderRe
 }
 
 stamp_begin :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResourceHandle) -> Error {
-  stampr: ^StampRenderResource = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stamp_handle) or_return
+  stampr: ^StampRenderResource = auto_cast get_resource(&rctx.ctx.resource_manager, stamp_handle) or_return
 
   // if stampr.clear_render_pass != auto_cast 0 {
   //   _begin_render_pass(rctx, stampr.clear_render_pass) or_return
@@ -357,10 +357,11 @@ stamp_begin :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResourc
 
 stamp_colored_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResourceHandle, rect: ^Rectf, color: ^Color) -> Error {
   // Obtain the resources
-  stampr: ^StampRenderResource = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stamp_handle) or_return
-  vbuf: ^VertexBuffer = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stampr.colored_rect_vertex_buffer) or_return
-  ibuf: ^IndexBuffer = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stampr.rect_index_buffer) or_return
-  ubuf: ^Buffer = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stampr.uniform_buffer.rh) or_return
+  stampr: ^StampRenderResource = auto_cast get_resource(&rctx.ctx.resource_manager, stamp_handle) or_return
+  vbuf: ^VertexBuffer = auto_cast get_resource(&rctx.ctx.resource_manager, stampr.colored_rect_vertex_buffer) or_return
+  ibuf: ^IndexBuffer = auto_cast get_resource(&rctx.ctx.resource_manager, stampr.rect_index_buffer) or_return
+  ubuf: ^Buffer = auto_cast get_resource(&rctx.ctx.resource_manager, stampr.uniform_buffer.rh) or_return
+  rprog: ^RenderProgram = auto_cast get_resource(&rctx.ctx.resource_manager, stampr.colored_rect_render_program) or_return
 
   // Write the input to the uniform buffer
   parameter_data := [8]f32 {
@@ -395,7 +396,7 @@ stamp_colored_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRender
   mem.copy(copy_dst, auto_cast &parameter_data[0], ubo_range)
 
   // Setup viewport and clip --- TODO this ain't true
-  _set_viewport_cmd(command_buffer, 0, 0, auto_cast ctx.swap_chain.extent.width,
+  _set_viewport_cmd(command_buffer, 0, auto_cast -ctx.swap_chain.extent.height, auto_cast ctx.swap_chain.extent.width,
     auto_cast ctx.swap_chain.extent.height)
   _set_scissor_cmd(command_buffer, 0, 0, ctx.swap_chain.extent.width, ctx.swap_chain.extent.height)
 
@@ -414,7 +415,7 @@ stamp_colored_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRender
     // Use the descriptor pool we created earlier (the one dedicated to this frame)
     descriptorPool = descriptor_pool,
     descriptorSetCount = 1,
-    pSetLayouts = &stampr.colored_rect_render_program.descriptor_layout,
+    pSetLayouts = &rprog.descriptor_layout,
   }
   vkres := vk.AllocateDescriptorSets(ctx.device, &set_alloc_info, &descriptor_sets[descriptor_set_index])
   if vkres != .SUCCESS {
@@ -439,13 +440,13 @@ stamp_colored_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRender
   write.descriptorType = .UNIFORM_BUFFER
   write.pBufferInfo = &buffer_infos[0]
   write.dstArrayElement = 0
-  write.dstBinding = stampr.colored_rect_render_program.layout_bindings[0].binding
+  write.dstBinding = rprog.layout_bindings[0].binding
   
   vk.UpdateDescriptorSets(ctx.device, auto_cast write_index, &writes[0], 0, nil)
 
-  vk.CmdBindDescriptorSets(command_buffer, .GRAPHICS, stampr.colored_rect_render_program.pipeline.layout, 0, 1, &desc_set, 0, nil)
+  vk.CmdBindDescriptorSets(command_buffer, .GRAPHICS, rprog.pipeline.layout, 0, 1, &desc_set, 0, nil)
 
-  vk.CmdBindPipeline(command_buffer, .GRAPHICS, stampr.colored_rect_render_program.pipeline.handle)
+  vk.CmdBindPipeline(command_buffer, .GRAPHICS, rprog.pipeline.handle)
 
   vk.CmdBindIndexBuffer(command_buffer, ibuf.buffer, 0, ibuf.index_type) // TODO -- support other index types
 
@@ -474,11 +475,12 @@ stamp_colored_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRender
 stamp_textured_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResourceHandle, txh: TextureResourceHandle,
   rect: ^Rectf, tint: ^Color = nil, sub_uv_coords: [4]f32 = {0.0, 0.0, 1.0, 1.0}) -> Error {
   // Obtain the resources
-  stampr: ^StampRenderResource = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stamp_handle) or_return
-  texture: ^Texture = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast txh) or_return
-  vbuf: ^VertexBuffer = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stampr.textured_rect_vertex_buffer) or_return
-  ibuf: ^IndexBuffer = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stampr.rect_index_buffer) or_return
-  ubuf: ^Buffer = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stampr.uniform_buffer.rh) or_return
+  stampr: ^StampRenderResource = auto_cast get_resource(&rctx.ctx.resource_manager, stamp_handle) or_return
+  texture: ^Texture = auto_cast get_resource(&rctx.ctx.resource_manager, txh) or_return
+  vbuf: ^VertexBuffer = auto_cast get_resource(&rctx.ctx.resource_manager, stampr.textured_rect_vertex_buffer) or_return
+  ibuf: ^IndexBuffer = auto_cast get_resource(&rctx.ctx.resource_manager, stampr.rect_index_buffer) or_return
+  ubuf: ^Buffer = auto_cast get_resource(&rctx.ctx.resource_manager, stampr.uniform_buffer.rh) or_return
+  rprog: ^RenderProgram = auto_cast get_resource(&rctx.ctx.resource_manager, stampr.textured_rect_render_program) or_return
 
   // Write the input to the uniform buffer
   tint_ := tint
@@ -538,7 +540,7 @@ stamp_textured_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRende
     // Use the descriptor pool we created earlier (the one dedicated to this frame)
     descriptorPool = descriptor_pool,
     descriptorSetCount = 1,
-    pSetLayouts = &stampr.textured_rect_render_program.descriptor_layout,
+    pSetLayouts = &rprog.descriptor_layout,
   }
   vkres := vk.AllocateDescriptorSets(ctx.device, &set_alloc_info, &descriptor_sets[descriptor_set_index])
   if vkres != .SUCCESS {
@@ -563,12 +565,12 @@ stamp_textured_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRende
     write.descriptorType = .UNIFORM_BUFFER
     write.pBufferInfo = &buffer_infos[0]
     write.dstArrayElement = 0
-    write.dstBinding = stampr.textured_rect_render_program.layout_bindings[0].binding
+    write.dstBinding = rprog.layout_bindings[0].binding
   }
 
   // Describe the Fragment Shader Combined Image Sampler
   {
-    image_sampler: ^Texture = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast txh) or_return
+    image_sampler: ^Texture = auto_cast get_resource(&rctx.ctx.resource_manager, txh) or_return
 
     image_sampler_info := &image_sampler_infos[0]
     image_sampler_info.imageLayout = .SHADER_READ_ONLY_OPTIMAL
@@ -584,14 +586,14 @@ stamp_textured_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRende
     write.descriptorType = .COMBINED_IMAGE_SAMPLER
     write.pImageInfo = image_sampler_info
     write.dstArrayElement = 0
-    write.dstBinding = stampr.textured_rect_render_program.layout_bindings[1].binding
+    write.dstBinding = rprog.layout_bindings[1].binding
   }
   
   vk.UpdateDescriptorSets(ctx.device, auto_cast write_index, &writes[0], 0, nil)
 
-  vk.CmdBindDescriptorSets(command_buffer, .GRAPHICS, stampr.textured_rect_render_program.pipeline.layout, 0, 1, &desc_set, 0, nil)
+  vk.CmdBindDescriptorSets(command_buffer, .GRAPHICS, rprog.pipeline.layout, 0, 1, &desc_set, 0, nil)
 
-  vk.CmdBindPipeline(command_buffer, .GRAPHICS, stampr.textured_rect_render_program.pipeline.handle)
+  vk.CmdBindPipeline(command_buffer, .GRAPHICS, rprog.pipeline.handle)
 
   vk.CmdBindIndexBuffer(command_buffer, ibuf.buffer, 0, ibuf.index_type) // TODO -- support other index types
 
@@ -626,14 +628,15 @@ stamp_text :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResource
   if text_length == 0 do return .Success
   
   // Obtain the resources
-  stampr: ^StampRenderResource = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stamp_handle) or_return
-  vbuf: ^VertexBuffer = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stampr.textured_rect_vertex_buffer) or_return
-  ibuf: ^IndexBuffer = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stampr.rect_index_buffer) or_return
-  ubuf: ^Buffer = auto_cast _get_resource(&rctx.ctx.resource_manager, auto_cast stampr.uniform_buffer.rh) or_return
+  stampr: ^StampRenderResource = auto_cast get_resource(&rctx.ctx.resource_manager, stamp_handle) or_return
+  vbuf: ^VertexBuffer = auto_cast get_resource(&rctx.ctx.resource_manager, stampr.textured_rect_vertex_buffer) or_return
+  ibuf: ^IndexBuffer = auto_cast get_resource(&rctx.ctx.resource_manager, stampr.rect_index_buffer) or_return
+  ubuf: ^Buffer = auto_cast get_resource(&rctx.ctx.resource_manager, stampr.uniform_buffer.rh) or_return
+  rprog: ^RenderProgram = auto_cast get_resource(&rctx.ctx.resource_manager, stampr.stb_font_render_program) or_return
 
   // Get the font image
-  font: ^Font = auto_cast _get_resource(&ctx.resource_manager, auto_cast font_handle) or_return
-  font_texture: ^Texture = auto_cast _get_resource(&ctx.resource_manager, auto_cast font.texture) or_return
+  font: ^Font = auto_cast get_resource(&ctx.resource_manager, font_handle) or_return
+  font_texture: ^Texture = auto_cast get_resource(&ctx.resource_manager, font.texture) or_return
 
   align_x: f32 = auto_cast pos_x
   align_y: f32 = auto_cast pos_y - font.bump_up_y_offset
@@ -727,7 +730,7 @@ stamp_text :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResource
       // Use the descriptor pool we created earlier (the one dedicated to this frame)
       descriptorPool = descriptor_pool,
       descriptorSetCount = 1,
-      pSetLayouts = &stampr.stb_font_render_program.descriptor_layout,
+      pSetLayouts = &rprog.descriptor_layout,
     }
     vkres := vk.AllocateDescriptorSets(ctx.device, &set_alloc_info, &descriptor_sets[descriptor_set_index])
     if vkres != .SUCCESS {
@@ -752,7 +755,7 @@ stamp_text :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResource
       write.descriptorType = .UNIFORM_BUFFER
       write.pBufferInfo = &buffer_infos[0]
       write.dstArrayElement = 0
-      write.dstBinding = stampr.stb_font_render_program.layout_bindings[0].binding
+      write.dstBinding = rprog.layout_bindings[0].binding
     }
 
     // Describe the Fragment Shader Combined Image Sampler
@@ -771,14 +774,14 @@ stamp_text :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResource
       write.descriptorType = .COMBINED_IMAGE_SAMPLER
       write.pImageInfo = image_sampler_info
       write.dstArrayElement = 0
-      write.dstBinding = stampr.stb_font_render_program.layout_bindings[1].binding
+      write.dstBinding = rprog.layout_bindings[1].binding
     }
     
     vk.UpdateDescriptorSets(ctx.device, auto_cast write_index, &writes[0], 0, nil)
 
-    vk.CmdBindDescriptorSets(command_buffer, .GRAPHICS, stampr.stb_font_render_program.pipeline.layout, 0, 1, &desc_set, 0, nil)
+    vk.CmdBindDescriptorSets(command_buffer, .GRAPHICS, rprog.pipeline.layout, 0, 1, &desc_set, 0, nil)
 
-    vk.CmdBindPipeline(command_buffer, .GRAPHICS, stampr.stb_font_render_program.pipeline.handle)
+    vk.CmdBindPipeline(command_buffer, .GRAPHICS, rprog.pipeline.handle)
 
     vk.CmdBindIndexBuffer(command_buffer, ibuf.buffer, 0, ibuf.index_type) // TODO -- support other index types
 

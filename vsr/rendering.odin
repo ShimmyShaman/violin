@@ -308,14 +308,15 @@ _set_scissor_cmd :: proc(command_buffer: vk.CommandBuffer, x: i32, y: i32, width
   vk.CmdSetScissor(command_buffer, 0, 1, &scissor)
 }
 
-draw_indexed :: proc(using rctx: ^RenderContext, render_program: ^RenderProgram, vertex_buffer: VertexBufferResourceHandle,
+draw_indexed :: proc(using rctx: ^RenderContext, render_program: RenderProgramResourceHandle, vertex_buffer: VertexBufferResourceHandle,
   index_buffer: IndexBufferResourceHandle, parameters: []ResourceHandle) -> Error {
   // Obtain the resources
-  vbuf: ^VertexBuffer = auto_cast get_resource(&rctx.ctx.resource_manager, cast(ResourceHandle) vertex_buffer) or_return
-  ibuf: ^IndexBuffer = auto_cast get_resource(&rctx.ctx.resource_manager, cast(ResourceHandle) index_buffer) or_return
+  vbuf: ^VertexBuffer = auto_cast get_resource(&rctx.ctx.resource_manager, vertex_buffer) or_return
+  ibuf: ^IndexBuffer = auto_cast get_resource(&rctx.ctx.resource_manager, index_buffer) or_return
+  rprog: ^RenderProgram = auto_cast get_resource(&rctx.ctx.resource_manager, render_program) or_return
 
   // Setup viewport and clip
-  _set_viewport_cmd(command_buffer, 0, 0, auto_cast ctx.swap_chain.extent.width,
+  _set_viewport_cmd(command_buffer, 0, - auto_cast ctx.swap_chain.extent.height, auto_cast ctx.swap_chain.extent.width,
     auto_cast ctx.swap_chain.extent.height)
   _set_scissor_cmd(command_buffer, 0, 0, ctx.swap_chain.extent.width, ctx.swap_chain.extent.height)
 
@@ -335,7 +336,7 @@ draw_indexed :: proc(using rctx: ^RenderContext, render_program: ^RenderProgram,
     // Use the descriptor pool we created earlier (the one dedicated to this frame)
     descriptorPool = descriptor_pool,
     descriptorSetCount = 1,
-    pSetLayouts = &render_program.descriptor_layout,
+    pSetLayouts = &rprog.descriptor_layout,
   }
   vkres := vk.AllocateDescriptorSets(ctx.device, &set_alloc_info, &descriptor_sets[descriptor_set_index])
   if vkres != .SUCCESS {
@@ -350,8 +351,8 @@ draw_indexed :: proc(using rctx: ^RenderContext, render_program: ^RenderProgram,
 
   // Describe each binding
   // fmt.println("render_program.layout_bindings:", render_program.layout_bindings)
-  for i in 0..<len(render_program.layout_bindings) {
-    #partial switch render_program.layout_bindings[i].descriptorType {
+  for i in 0..<len(rprog.layout_bindings) {
+    #partial switch rprog.layout_bindings[i].descriptorType {
       case .UNIFORM_BUFFER: {
         // TODO -- refactor / performance check / integrate mrt_write_desc_and_queue_render_data concept into this
         buffer: ^Buffer = auto_cast get_resource(&rctx.ctx.resource_manager, parameters[i]) or_return
@@ -371,7 +372,7 @@ draw_indexed :: proc(using rctx: ^RenderContext, render_program: ^RenderProgram,
         write.descriptorType = .UNIFORM_BUFFER
         write.pBufferInfo = buffer_info
         write.dstArrayElement = 0
-        write.dstBinding = render_program.layout_bindings[i].binding
+        write.dstBinding = rprog.layout_bindings[i].binding
       }
       case .COMBINED_IMAGE_SAMPLER: {
         // Element Fragment Shader Combined Image Sampler
@@ -391,10 +392,10 @@ draw_indexed :: proc(using rctx: ^RenderContext, render_program: ^RenderProgram,
         write.descriptorType = .COMBINED_IMAGE_SAMPLER
         write.pImageInfo = image_sampler_info
         write.dstArrayElement = 0
-        write.dstBinding = render_program.layout_bindings[i].binding
+        write.dstBinding = rprog.layout_bindings[i].binding
       }
       case: {
-        fmt.eprintln("Unsupported descriptor type:", render_program.layout_bindings[i].descriptorType, '[', i, ']')
+        fmt.eprintln("Unsupported descriptor type:", rprog.layout_bindings[i].descriptorType, '[', i, ']')
         return .NotYetDetailed
       }
     }
@@ -402,26 +403,26 @@ draw_indexed :: proc(using rctx: ^RenderContext, render_program: ^RenderProgram,
   
   vk.UpdateDescriptorSets(ctx.device, auto_cast write_index, &writes[0], 0, nil)
 
-  vk.CmdBindDescriptorSets(command_buffer, .GRAPHICS, render_program.pipeline.layout, 0, 1, &desc_set, 0, nil)
+  vk.CmdBindDescriptorSets(command_buffer, .GRAPHICS, rprog.pipeline.layout, 0, 1, &desc_set, 0, nil)
 
-  vk.CmdBindPipeline(command_buffer, .GRAPHICS, render_program.pipeline.handle)
+  vk.CmdBindPipeline(command_buffer, .GRAPHICS, rprog.pipeline.handle)
 
   vk.CmdBindIndexBuffer(command_buffer, ibuf.buffer, 0, ibuf.index_type) // TODO -- support other index types
 
   // const VkDeviceSize offsets[1] = {0};
-  // vkCmdBindVertexBuffers(command_buffer, 0, 1, &cmd->render_program.data->vertices->buf, offsets);
+  // vkCmdBindVertexBuffers(command_buffer, 0, 1, &cmd->rprog.data->vertices->buf, offsets);
   // // vkCmdDraw(command_buffer, 3 * 2 * 6, 1, 0, 0);
-  // int index_draw_count = cmd->render_program.data->specific_index_draw_count;
+  // int index_draw_count = cmd->rprog.data->specific_index_draw_count;
   // if (!index_draw_count)
-  //   index_draw_count = cmd->render_program.data->indices->capacity;
+  //   index_draw_count = cmd->rprog.data->indices->capacity;
   offsets: vk.DeviceSize = 0
   vk.CmdBindVertexBuffers(command_buffer, 0, 1, &vbuf.buffer, &offsets)
   // TODO -- specific index draw count
 
   // // printf("index_draw_count=%i\n", index_draw_count);
-  // // printf("cmd->render_program.data->indices->capacity=%i\n", cmd->render_program.data->indices->capacity);
-  // // printf("cmd->render_program.data->specific_index_draw_count=%i\n",
-  // //        cmd->render_program.data->specific_index_draw_count);
+  // // printf("cmd->rprog.data->indices->capacity=%i\n", cmd->rprog.data->indices->capacity);
+  // // printf("cmd->rprog.data->specific_index_draw_count=%i\n",
+  // //        cmd->rprog.data->specific_index_draw_count);
 
   // vkCmdDrawIndexed(command_buffer, index_draw_count, 1, 0, 0, 0);
   vk.CmdDrawIndexed(command_buffer, auto_cast ibuf.index_count, 1, 0, 0, 0) // TODO -- index_count as u32?

@@ -67,7 +67,7 @@ Resource :: struct {
     VertexBuffer,
     IndexBuffer,
     Font,
-  }
+  },
 }
 
 ImageUsage :: enum {
@@ -135,7 +135,7 @@ RenderPass :: struct {
 
 StampRenderResource :: struct {
   render_pass: RenderPassResourceHandle,
-  colored_rect_render_program, textured_rect_render_program, stb_font_render_program: RenderProgram,
+  colored_rect_render_program, textured_rect_render_program, stb_font_render_program: RenderProgramResourceHandle,
   colored_rect_vertex_buffer, textured_rect_vertex_buffer: VertexBufferResourceHandle,
   rect_index_buffer: IndexBufferResourceHandle,
 
@@ -238,7 +238,8 @@ _resource_manager_report :: proc(using rm: ^ResourceManager) {
   fmt.println("  Resource Index: ", resource_index)
 }
 
-_get_resource_any :: proc(using rm: ^ResourceManager, rh: ResourceHandle, loc := #caller_location) -> (ptr: rawptr, err: Error) {
+get_resource :: proc(using rm: ^ResourceManager, #any_int rh: ResourceHandle, loc := #caller_location) \
+  -> (ptr: rawptr, err: Error) {
   res := resource_map[rh]
   if res == nil {
     err = .ResourceNotFound
@@ -252,15 +253,8 @@ _get_resource_any :: proc(using rm: ^ResourceManager, rh: ResourceHandle, loc :=
   return
 }
 
-get_resource_render_pass :: proc(using rm: ^ResourceManager, rh: RenderPassResourceHandle, loc := #caller_location) \
-  -> (ptr: ^RenderPass, err: Error) {
-  ptr = auto_cast _get_resource_any(rm, auto_cast rh, loc) or_return
-  return
-}
-
-get_resource :: proc {_get_resource_any, get_resource_render_pass}
-
-@(private)__pop_resource_ptr :: proc(using ctx: ^Context, rh: ResourceHandle) -> (res: ^Resource, err: Error) {
+@(private)__pop_resource_ptr :: proc(using ctx: ^Context, rh: ResourceHandle, kind_verification: ResourceKind) \
+  -> (res: ^Resource, err: Error) {
   vk.DeviceWaitIdle(device); // TODO -- will 'probably' need better synchronization
 
   res = resource_manager.resource_map[rh]
@@ -269,6 +263,13 @@ get_resource :: proc {_get_resource_any, get_resource_render_pass}
     err = .ResourceNotFound
     return
   }
+
+  if res.kind != kind_verification {
+    fmt.println("Resource kind mismatch:", res.kind, "!=", kind_verification)
+    err = .ResourceKindMismatch
+    return
+  }
+
   delete_key(&resource_manager.resource_map, rh)
 
   return
@@ -285,21 +286,21 @@ destroy_resource_any :: proc(using ctx: ^Context, rh: ResourceHandle) -> Error {
     case .Texture:
       destroy_texture(ctx, auto_cast rh)
     case .Buffer:
-      _destroy_buffer(ctx, auto_cast rh)
+      destroy_buffer(ctx, auto_cast rh)
     case .DepthBuffer:
-      _dispose_depth_buffer_resources(ctx, auto_cast rh)
+      destroy_depth_buffer(ctx, auto_cast rh)
     case .RenderPass:
-      _destroy_render_pass(ctx, auto_cast rh)
+      destroy_render_pass(ctx, auto_cast rh)
     case .RenderProgram:
-      destroy_render_program(ctx, rh)
+      destroy_render_program(ctx, auto_cast rh)
     case .StampRenderResource:
-      destroy_stamp_render_resource(ctx, rh)
+      destroy_stamp_render_resource(ctx, auto_cast rh)
     case .VertexBuffer:
-      destroy_vertex_buffer(ctx, rh)
+      destroy_vertex_buffer(ctx, auto_cast rh)
     case .IndexBuffer:
-      destroy_index_buffer(ctx, rh)
+      destroy_index_buffer(ctx, auto_cast rh)
     case .Font:
-      destroy_font(ctx, rh)
+      destroy_font(ctx, auto_cast rh)
     case .Any:
       fallthrough
     case:
@@ -318,7 +319,7 @@ destroy_resource_any :: proc(using ctx: ^Context, rh: ResourceHandle) -> Error {
 }
 
 destroy_texture :: proc(using ctx: ^Context, rh: TextureResourceHandle) -> Error {
-  res := __pop_resource_ptr(ctx, rh) or_return
+  res := __pop_resource_ptr(ctx, auto_cast rh, .Texture) or_return
 
   texture: ^Texture = auto_cast &res.data
   vma.DestroyImage(vma_allocator, texture.image, texture.allocation)
@@ -330,28 +331,34 @@ destroy_texture :: proc(using ctx: ^Context, rh: TextureResourceHandle) -> Error
   }
 
   mem.free(res)
+
+  return .Success
 }
 
 destroy_buffer :: proc(using ctx: ^Context, rh: BufferResourceHandle) -> Error {
-  res := __pop_resource_ptr(ctx, rh) or_return
+  res := __pop_resource_ptr(ctx, auto_cast rh, .Buffer) or_return
 
   buffer: ^Buffer = auto_cast &res.data
   vma.DestroyBuffer(vma_allocator, buffer.buffer, buffer.allocation)
 
   mem.free(res)
+
+  return .Success
 }
 
 destroy_depth_buffer :: proc(using ctx: ^Context, rh: DepthBufferResourceHandle) -> Error {
-  res := __pop_resource_ptr(ctx, rh) or_return
+  res := __pop_resource_ptr(ctx, auto_cast rh, .DepthBuffer) or_return
 
   depth_buffer: ^DepthBuffer = auto_cast &res.data
   _dispose_depth_buffer_resources(ctx, depth_buffer)
 
   mem.free(res)
+
+  return .Success
 }
 
 destroy_render_pass :: proc(using ctx: ^Context, rh: RenderPassResourceHandle) -> Error {
-  res := __pop_resource_ptr(ctx, rh) or_return
+  res := __pop_resource_ptr(ctx, auto_cast rh, .RenderPass) or_return
 
   render_pass: ^RenderPass = auto_cast &res.data
   
@@ -369,55 +376,67 @@ destroy_render_pass :: proc(using ctx: ^Context, rh: RenderPassResourceHandle) -
   vk.DestroyRenderPass(device, render_pass.render_pass, nil)
 
   mem.free(res)
+
+  return .Success
 }
 
-destroy_render_program :: proc(using ctx: ^Context, render_program: ^RenderProgramResourceHandle) {
-  res := __pop_resource_ptr(ctx, rh) or_return
+destroy_render_program :: proc(using ctx: ^Context, rh: RenderProgramResourceHandle) -> Error {
+  res := __pop_resource_ptr(ctx, auto_cast rh, .RenderProgram) or_return
 
   rp: ^RenderProgram = auto_cast &res.data
-  if render_program.pipeline.handle != 0 do vk.DestroyPipeline(device, render_program.pipeline.handle, nil)
-  if render_program.pipeline.layout != 0 do vk.DestroyPipelineLayout(device, render_program.pipeline.layout, nil)
+  if rp.pipeline.handle != 0 do vk.DestroyPipeline(device, rp.pipeline.handle, nil)
+  if rp.pipeline.layout != 0 do vk.DestroyPipelineLayout(device, rp.pipeline.layout, nil)
   
-  if render_program.descriptor_layout != 0 do vk.DestroyDescriptorSetLayout(device, render_program.descriptor_layout, nil)
+  if rp.descriptor_layout != 0 do vk.DestroyDescriptorSetLayout(device, rp.descriptor_layout, nil)
 
   mem.free(res)
+
+  return .Success
 }
 
 destroy_stamp_render_resource :: proc(using ctx: ^Context, rh: StampRenderResourceHandle) -> Error {
-  res := __pop_resource_ptr(ctx, rh) or_return
+  res := __pop_resource_ptr(ctx, auto_cast rh, .StampRenderResource) or_return
 
   stamp_render_resource: ^StampRenderResource = auto_cast &res.data
 
   __release_stamp_render_resource(ctx, stamp_render_resource)
 
   mem.free(res)
+
+  return .Success
 }
 
 destroy_vertex_buffer :: proc(using ctx: ^Context, rh: VertexBufferResourceHandle) -> Error {
-  res := __pop_resource_ptr(ctx, rh) or_return
+  res := __pop_resource_ptr(ctx, auto_cast rh, .VertexBuffer) or_return
 
   vertex_buffer: ^VertexBuffer = auto_cast &res.data
   vma.DestroyBuffer(vma_allocator, vertex_buffer.buffer, vertex_buffer.allocation)
 
   mem.free(res)
+
+  return .Success
 }
 
 destroy_index_buffer :: proc(using ctx: ^Context, rh: IndexBufferResourceHandle) -> Error {
-  res := __pop_resource_ptr(ctx, rh) or_return
+  res := __pop_resource_ptr(ctx, auto_cast rh, .IndexBuffer) or_return
 
   index_buffer: ^IndexBuffer = auto_cast &res.data
   vma.DestroyBuffer(vma_allocator, index_buffer.buffer, index_buffer.allocation)
 
   mem.free(res)
+
+  return .Success
 }
 
 destroy_font :: proc(using ctx: ^Context, rh: FontResourceHandle) -> Error {
-  res := __pop_resource_ptr(ctx, rh) or_return
+  res := __pop_resource_ptr(ctx, auto_cast rh, .Font) or_return
 
   font: ^Font = auto_cast &res.data
   destroy_resource(ctx, font.texture)
 
   mem.free(res)
+
+  return .Success
 }
 
 destroy_resource :: proc {destroy_resource_any, destroy_texture, destroy_buffer, destroy_depth_buffer, destroy_render_pass,
@@ -576,7 +595,7 @@ transition_image_layout :: proc(ctx: ^Context, image: vk.Image, format: vk.Forma
 }
 
 write_to_texture :: proc(using ctx: ^Context, dst: TextureResourceHandle, data: rawptr, size_in_bytes: int) -> Error {
-  texture: ^Texture = auto_cast _get_resource_any(&resource_manager, auto_cast dst) or_return
+  texture: ^Texture = auto_cast get_resource(&resource_manager, dst) or_return
 
   // Transition Image Layout
   transition_image_layout(ctx, texture.image, texture.format, texture.current_layout, .TRANSFER_DST_OPTIMAL) or_return
@@ -661,7 +680,7 @@ create_texture :: proc(using ctx: ^Context, tex_width: i32, tex_height: i32, tex
   image_usage: ImageUsage) -> (handle: TextureResourceHandle, err: Error) {
   // Create the resource
   handle = auto_cast _create_resource(&resource_manager, .Texture) or_return
-  texture: ^Texture = auto_cast _get_resource_any(&resource_manager, auto_cast handle) or_return
+  texture: ^Texture = auto_cast get_resource(&resource_manager, handle) or_return
   
   // image_sampler->resource_uid = p_vkrs->resource_uid_counter++; // TODO
   texture.sampler_usage = image_usage
@@ -884,7 +903,7 @@ create_texture :: proc(using ctx: ^Context, tex_width: i32, tex_height: i32, tex
 create_depth_buffer :: proc(ctx: ^Context) -> (rh: ResourceHandle, err: Error) {
   // Create the depth buffer resource
   rh = _create_resource(&ctx.resource_manager, .DepthBuffer) or_return
-  db: ^DepthBuffer = auto_cast _get_resource_any(&ctx.resource_manager, rh) or_return
+  db: ^DepthBuffer = auto_cast get_resource(&ctx.resource_manager, rh) or_return
 
   err = _build_depth_buffer(ctx, db)
   return
@@ -998,7 +1017,7 @@ load_texture_from_file :: proc(using ctx: ^Context, filepath: cstring) -> (rh: T
   // fmt.println("width:", tex_width, "height:", tex_height, "channels:", tex_channels, "image_size:", image_size)
 
   rh = create_texture(ctx, tex_width, tex_height, tex_channels, .ShaderReadOnly) or_return
-  texture: ^Texture = auto_cast _get_resource_any(&resource_manager, auto_cast rh) or_return
+  texture: ^Texture = auto_cast get_resource(&resource_manager, rh) or_return
 
   write_to_texture(ctx, rh, pixels, image_size) or_return
 
@@ -1099,7 +1118,7 @@ create_vertex_buffer :: proc(using ctx: ^Context, vertex_data: rawptr, vertex_si
   vertex_count: int) -> (rh: VertexBufferResourceHandle, err: Error) {
   // Create the resource
   rh = auto_cast _create_resource(&ctx.resource_manager, .VertexBuffer) or_return
-  vertex_buffer: ^VertexBuffer = auto_cast _get_resource_any(&ctx.resource_manager, auto_cast rh) or_return
+  vertex_buffer: ^VertexBuffer = auto_cast get_resource(&ctx.resource_manager, rh) or_return
 
   // Set
   vertex_buffer.vertex_count = vertex_count
@@ -1161,7 +1180,7 @@ create_vertex_buffer :: proc(using ctx: ^Context, vertex_data: rawptr, vertex_si
 create_index_buffer :: proc(using ctx: ^Context, indices: ^u16, index_count: int) -> (rh:IndexBufferResourceHandle, err: Error) {
   // Create the resource
   rh = auto_cast _create_resource(&ctx.resource_manager, .IndexBuffer) or_return
-  index_buffer: ^IndexBuffer = auto_cast _get_resource_any(&ctx.resource_manager, auto_cast rh) or_return
+  index_buffer: ^IndexBuffer = auto_cast get_resource(&ctx.resource_manager, rh) or_return
 
   // Set
   index_buffer.index_count = index_count
@@ -1284,7 +1303,7 @@ create_index_buffer :: proc(using ctx: ^Context, indices: ^u16, index_count: int
   
 //   vk.BindBufferMemory(device, buffer.buffer, buffer.ttmemory, 0);
 // }
-create_render_program :: proc(ctx: ^Context, info: ^RenderProgramCreateInfo) -> (rp: RenderProgram, err: Error) {
+create_render_program :: proc(ctx: ^Context, info: ^RenderProgramCreateInfo) -> (rp_rh: RenderProgramResourceHandle, err: Error) {
   MAX_INPUT :: 16
   err = .Success
 
@@ -1310,6 +1329,10 @@ create_render_program :: proc(ctx: ^Context, info: ^RenderProgramCreateInfo) -> 
       offset = info.input_attributes[i].offset,
     }
   }
+
+  // Create the resource
+  rp_rh = auto_cast _create_resource(&ctx.resource_manager, .RenderProgram) or_return
+  rp: ^RenderProgram = auto_cast get_resource(&ctx.resource_manager, rp_rh) or_return
 
   // Descriptors
   rp.layout_bindings = make_slice([]vk.DescriptorSetLayoutBinding, layout_bindings_count)
@@ -1409,7 +1432,7 @@ load_font :: proc(using ctx: ^Context, ttf_filepath: string, font_height: f32) -
 
   // Create the resource
   fh = auto_cast _create_resource(&resource_manager, .Font) or_return
-  font: ^Font = auto_cast _get_resource_any(&resource_manager, auto_cast fh) or_return
+  font: ^Font = auto_cast get_resource(&resource_manager, fh) or_return
   font.texture = create_texture(ctx, tex_width, tex_height, tex_channels, .ShaderReadOnly) or_return
   font.height = font_height
   font.char_data = auto_cast mem.alloc(size=96 * size_of(stbtt.bakedchar), allocator = context.temp_allocator)
@@ -1524,7 +1547,7 @@ load_font :: proc(using ctx: ^Context, ttf_filepath: string, font_height: f32) -
 
 determine_text_display_dimensions :: proc(using ctx: ^Context, font: FontResourceHandle, text: string) \
   -> (text_width: f32, text_height: f32, err: Error) {
-  font: ^Font = auto_cast _get_resource_any(&resource_manager, auto_cast font) or_return
+  font: ^Font = auto_cast get_resource(&resource_manager, font) or_return
 
   q: stbtt.aligned_quad
 

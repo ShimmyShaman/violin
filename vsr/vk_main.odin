@@ -35,11 +35,18 @@ Error :: enum {
   ResourceNotFound,
   InvalidState,
   VulkanPresentationResized,
+  ResourceKindMismatch,
   MAX_EXTENT_VALUE = 1000,
 }
 
-Context :: struct {
+InitializedSettings :: struct {
   violin_package_relative_path: string,
+  support_negative_viewport_heights: bool,
+  device_extensions: [dynamic]cstring,
+}
+
+Context :: struct {
+  __settings: InitializedSettings,
   window: ^sdl2.Window,
 
   vma_allocator: vma.Allocator,
@@ -138,20 +145,18 @@ RenderPassConfigFlag :: enum vk.Flags {
   HasDepthBuffer       = 2,
 }
 
-DEVICE_EXTENSIONS := [?]cstring{
-  "VK_KHR_swapchain",
-};
 VALIDATION_LAYERS := [?]cstring {
   "VK_LAYER_KHRONOS_validation",
 }
 
-init :: proc(violin_package_relative_path: string) -> (ctx: ^Context, err: Error) {
+init :: proc(violin_package_relative_path: string, support_negative_viewport_heights: bool = true) -> (ctx: ^Context, err: Error) {
   using sdl2
 
   err = .Success
 
   ctx = new(Context)
-  ctx.violin_package_relative_path = strings.clone(violin_package_relative_path)
+  ctx.__settings.violin_package_relative_path = strings.clone(violin_package_relative_path)
+  ctx.__settings.support_negative_viewport_heights = support_negative_viewport_heights
 
   // Init
   result := auto_cast Init(INIT_VIDEO)
@@ -173,7 +178,7 @@ init :: proc(violin_package_relative_path: string) -> (ctx: ^Context, err: Error
   ctx.window = CreateWindow("OdWin", WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, 960, 600,
     WINDOW_SHOWN | WINDOW_RESIZABLE | WINDOW_VULKAN)
 
-  init_vulkan(ctx) or_return
+  init_vulkan(ctx,) or_return
   return
 }
 
@@ -231,7 +236,8 @@ quit :: proc(using ctx: ^Context) {
   sdl2.Vulkan_UnloadLibrary()
   sdl2.Quit()
 
-  delete_string(ctx.violin_package_relative_path)
+  delete_string(ctx.__settings.violin_package_relative_path)
+  delete_dynamic_array(ctx.__settings.device_extensions)
   free(ctx)
 }
 
@@ -375,7 +381,7 @@ compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8
   return
 }
 
-init_vulkan_extensions :: proc(ctx: ^Context) {
+set_vulkan_extensions :: proc(ctx: ^Context) {
 
   extra_ext_count : u32 : 0
   sdl2.Vulkan_GetInstanceExtensions(ctx.window, &ctx.extensions_count, nil)
@@ -386,8 +392,10 @@ init_vulkan_extensions :: proc(ctx: ^Context) {
 
   // ctx.extensions_count += extra_ext_count
   // ctx.extensions_names[ctx.extensions_count] = vk.EXT_DEBUG_UTILS_EXTENSION_NAME
+  // ctx.extensions_names[ctx.extensions_count] = vk.KHR_MAINTENANCE1_EXTENSION_NAME
 
-  // for i in 0..<ctx.extensions_count do fmt.println("--extension: ", ctx.extensions_names[i])
+  fmt.println("Vulkan extensions:")
+  for i in 0..<ctx.extensions_count do fmt.println("--extension: ", ctx.extensions_names[i])
 }
 
 check_vulkan_layer_support :: proc(create_info: ^vk.InstanceCreateInfo) -> Error {
@@ -442,10 +450,10 @@ _create_instance :: proc(ctx: ^Context) -> Error {
     applicationVersion = vk.MAKE_VERSION(0, 1, 1),
     pEngineName = "Violin Renderer",
     engineVersion = vk.MAKE_VERSION(0, 1, 1),
-    apiVersion = vk.API_VERSION_1_0,
+    apiVersion = vk.API_VERSION_1_1,
   }
 
-  init_vulkan_extensions(ctx)
+  set_vulkan_extensions(ctx)
   create_info := vk.InstanceCreateInfo {
     sType = .INSTANCE_CREATE_INFO,
     pApplicationInfo = &app_info,
@@ -453,7 +461,6 @@ _create_instance :: proc(ctx: ^Context) -> Error {
     ppEnabledExtensionNames = ctx.extensions_names,
   }
   check_vulkan_layer_support(&create_info)
-
 
   // Initialize GetInstanceProcAddr
   context.user_ptr = &ctx.instance;
@@ -554,14 +561,15 @@ _set_physical_device_queue_families :: proc(surface: vk.SurfaceKHR, physical_dev
   return
 }
 
-check_device_extension_support :: proc(physical_device: vk.PhysicalDevice) -> bool {
+check_device_extension_support :: proc(ctx: ^Context, physical_device: vk.PhysicalDevice) -> bool {
   ext_count: u32;
   vk.EnumerateDeviceExtensionProperties(physical_device, nil, &ext_count, nil);
   
   available_extensions := make([]vk.ExtensionProperties, ext_count);
+  defer delete(available_extensions)
   vk.EnumerateDeviceExtensionProperties(physical_device, nil, &ext_count, raw_data(available_extensions));
   
-  for ext in DEVICE_EXTENSIONS
+  for ext in ctx.__settings.device_extensions
   {
     found: b32;
     for available in &available_extensions
@@ -598,7 +606,7 @@ _determine_device_suitability :: proc(using ctx: ^Context, dev: vk.PhysicalDevic
   score += cast(int)props.limits.maxImageDimension2D;
   
   if !features.geometryShader do return
-  if !check_device_extension_support(dev) do return
+  if !check_device_extension_support(ctx, dev) do return
   
   _query_swap_chain_details(ctx, dev)
   if len(swap_chain.support.formats) == 0 || len(swap_chain.support.present_modes) == 0 do return
@@ -623,6 +631,12 @@ _create_surface_and_set_device :: proc(using ctx: ^Context) -> Error {
   devices := make([]vk.PhysicalDevice, device_count);
   defer delete(devices)
   vk.EnumeratePhysicalDevices(instance, &device_count, raw_data(devices));
+
+  // Set required device extensions
+  append_elem(&ctx.__settings.device_extensions, vk.KHR_SWAPCHAIN_EXTENSION_NAME)
+  if ctx.__settings.support_negative_viewport_heights {
+    append_elem(&ctx.__settings.device_extensions, vk.KHR_MAINTENANCE1_EXTENSION_NAME)
+  }
 
   hiscore := 0;
   for dev in devices {
@@ -662,8 +676,8 @@ _create_logical_device :: proc(using ctx: ^Context) -> Error {
   device_features: vk.PhysicalDeviceFeatures;
   device_create_info: vk.DeviceCreateInfo;
   device_create_info.sType = .DEVICE_CREATE_INFO;
-  device_create_info.enabledExtensionCount = u32(len(DEVICE_EXTENSIONS));
-  device_create_info.ppEnabledExtensionNames = &DEVICE_EXTENSIONS[0];
+  device_create_info.enabledExtensionCount = u32(len(ctx.__settings.device_extensions));
+  device_create_info.ppEnabledExtensionNames = &ctx.__settings.device_extensions[0];
   device_create_info.pQueueCreateInfos = raw_data(queue_create_infos);
   device_create_info.queueCreateInfoCount = u32(len(queue_create_infos));
   device_create_info.pEnabledFeatures = &device_features;
@@ -1051,7 +1065,7 @@ create_graphics_pipeline :: proc(ctx: ^Context, pipeline_config: ^PipelineCreate
     basePipelineIndex = -1,
   }
 
-  render_pass: ^RenderPass = get_resource(&ctx.resource_manager, pipeline_config.render_pass) or_return
+  render_pass: ^RenderPass = auto_cast get_resource(&ctx.resource_manager, pipeline_config.render_pass) or_return
   pipeline_info.renderPass = render_pass.render_pass
   if .HasDepthBuffer in render_pass.config {
     pipeline_info.pDepthStencilState = &depth_stencil_create_info
@@ -1241,7 +1255,7 @@ create_sync_objects :: proc(using ctx: ^Context) -> Error {
   iter: int
   for rprh in iterate_resources(&iter, &ctx.resource_manager, .RenderPass) {
     // fmt.println("rprh:", rprh)
-    render_pass: ^RenderPass = auto_cast _get_resource(&ctx.resource_manager, rprh) or_return
+    render_pass: ^RenderPass = auto_cast get_resource(&ctx.resource_manager, rprh) or_return
     // fmt.println("render_pass:", render_pass)
 
     // Delete Current
@@ -1256,7 +1270,7 @@ create_sync_objects :: proc(using ctx: ^Context) -> Error {
     }
 
     if render_pass.depth_buffer_rh != 0 {
-      db: ^DepthBuffer = auto_cast _get_resource(&ctx.resource_manager, render_pass.depth_buffer_rh) or_return
+      db: ^DepthBuffer = auto_cast get_resource(&ctx.resource_manager, render_pass.depth_buffer_rh) or_return
       _dispose_depth_buffer_resources(ctx, db) or_return
       _build_depth_buffer(ctx, db) or_return
     }
