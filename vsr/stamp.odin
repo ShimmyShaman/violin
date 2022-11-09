@@ -396,9 +396,15 @@ stamp_colored_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRender
   mem.copy(copy_dst, auto_cast &parameter_data[0], ubo_range)
 
   // Setup viewport and clip --- TODO this ain't true
-  _set_viewport_cmd(command_buffer, 0, auto_cast -ctx.swap_chain.extent.height, auto_cast ctx.swap_chain.extent.width,
-    auto_cast ctx.swap_chain.extent.height)
-  _set_scissor_cmd(command_buffer, 0, 0, ctx.swap_chain.extent.width, ctx.swap_chain.extent.height)
+  // if rctx.ctx.__settings.support_negative_viewport_heights {
+  //   _set_viewport_cmd(command_buffer, 0, auto_cast ctx.swap_chain.extent.height, auto_cast ctx.swap_chain.extent.width,
+  //     -auto_cast ctx.swap_chain.extent.height)
+  //   _set_scissor_cmd(command_buffer, 0, 0, ctx.swap_chain.extent.width, ctx.swap_chain.extent.height)
+  // } else {
+    _set_viewport_cmd(command_buffer, 0, 0, auto_cast ctx.swap_chain.extent.width,
+      auto_cast ctx.swap_chain.extent.height)
+    _set_scissor_cmd(command_buffer, 0, 0, ctx.swap_chain.extent.width, ctx.swap_chain.extent.height)
+  // }
 
   // Queue Buffer Write
   MAX_DESC_SET_WRITES :: 8
@@ -521,8 +527,7 @@ stamp_textured_rect :: proc(using rctx: ^RenderContext, stamp_handle: StampRende
   mem.copy(copy_dst, auto_cast &parameter_data[0], ubo_range)
 
   // Setup viewport and clip --- TODO this ain't true
-  _set_viewport_cmd(command_buffer, 0, 0, auto_cast ctx.swap_chain.extent.width,
-    auto_cast ctx.swap_chain.extent.height)
+  _set_viewport_cmd(command_buffer, 0, 0, auto_cast ctx.swap_chain.extent.width, auto_cast ctx.swap_chain.extent.height)
   _set_scissor_cmd(command_buffer, 0, 0, ctx.swap_chain.extent.width, ctx.swap_chain.extent.height)
 
   // Queue Buffer Write
@@ -711,8 +716,7 @@ stamp_text :: proc(using rctx: ^RenderContext, stamp_handle: StampRenderResource
     mem.copy(copy_dst, auto_cast &parameter_data[0], ubo_range)
 
     // Setup viewport and clip --- TODO this ain't true
-    _set_viewport_cmd(command_buffer, 0, 0, auto_cast ctx.swap_chain.extent.width,
-      auto_cast ctx.swap_chain.extent.height)
+    _set_viewport_cmd(command_buffer, 0, 0, auto_cast ctx.swap_chain.extent.width, auto_cast ctx.swap_chain.extent.height)
     _set_scissor_cmd(command_buffer, 0, 0, ctx.swap_chain.extent.width, ctx.swap_chain.extent.height)
     
     // Queue Buffer Write

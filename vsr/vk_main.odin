@@ -394,8 +394,8 @@ set_vulkan_extensions :: proc(ctx: ^Context) {
   // ctx.extensions_names[ctx.extensions_count] = vk.EXT_DEBUG_UTILS_EXTENSION_NAME
   // ctx.extensions_names[ctx.extensions_count] = vk.KHR_MAINTENANCE1_EXTENSION_NAME
 
-  fmt.println("Vulkan extensions:")
-  for i in 0..<ctx.extensions_count do fmt.println("--extension: ", ctx.extensions_names[i])
+  // fmt.println("Vulkan extensions:")
+  // for i in 0..<ctx.extensions_count do fmt.println("--extension: ", ctx.extensions_names[i])
 }
 
 check_vulkan_layer_support :: proc(create_info: ^vk.InstanceCreateInfo) -> Error {
@@ -968,29 +968,29 @@ create_graphics_pipeline :: proc(ctx: ^Context, pipeline_config: ^PipelineCreate
   viewport.height = cast(f32)ctx.swap_chain.extent.height;
   viewport.minDepth = 0.0;
   viewport.maxDepth = 1.0;
-  
+
   scissor: vk.Rect2D;
   scissor.offset = {0, 0};
   scissor.extent = ctx.swap_chain.extent;
-  
+
   viewport_state: vk.PipelineViewportStateCreateInfo;
   viewport_state.sType = .PIPELINE_VIEWPORT_STATE_CREATE_INFO;
   viewport_state.viewportCount = 1;
   viewport_state.scissorCount = 1;
-  
+
   rasterizer: vk.PipelineRasterizationStateCreateInfo;
   rasterizer.sType = .PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
   rasterizer.depthClampEnable = false;
   rasterizer.rasterizerDiscardEnable = false;
   rasterizer.polygonMode = .FILL;
   rasterizer.lineWidth = 1.0;
-  rasterizer.cullMode = {.BACK};
-  rasterizer.frontFace = .CLOCKWISE;
+  rasterizer.cullMode = pipeline_config.cull_mode
+  rasterizer.frontFace = pipeline_config.front_face
   rasterizer.depthBiasEnable = false;
   rasterizer.depthBiasConstantFactor = 0.0;
   rasterizer.depthBiasClamp = 0.0;
   rasterizer.depthBiasSlopeFactor = 0.0;
-  
+
   multisampling: vk.PipelineMultisampleStateCreateInfo;
   multisampling.sType = .PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
   multisampling.sampleShadingEnable = false;
@@ -999,7 +999,7 @@ create_graphics_pipeline :: proc(ctx: ^Context, pipeline_config: ^PipelineCreate
   multisampling.pSampleMask = nil;
   multisampling.alphaToCoverageEnable = false;
   multisampling.alphaToOneEnable = false;
-  
+
   color_blend_attachment: vk.PipelineColorBlendAttachmentState;
   color_blend_attachment.colorWriteMask = {.R, .G, .B, .A};
   color_blend_attachment.blendEnable = true;

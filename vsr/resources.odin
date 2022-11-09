@@ -176,6 +176,8 @@ PipelineCreateConfig :: struct {
   render_pass: RenderPassResourceHandle,
   vertex_shader_filepath: string,
   fragment_shader_filepath: string,
+  cull_mode: vk.CullModeFlags,
+  front_face: vk.FrontFace,
 }
 
 RenderProgramCreateInfo :: struct {

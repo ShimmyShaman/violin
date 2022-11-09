@@ -316,9 +316,15 @@ draw_indexed :: proc(using rctx: ^RenderContext, render_program: RenderProgramRe
   rprog: ^RenderProgram = auto_cast get_resource(&rctx.ctx.resource_manager, render_program) or_return
 
   // Setup viewport and clip
-  _set_viewport_cmd(command_buffer, 0, - auto_cast ctx.swap_chain.extent.height, auto_cast ctx.swap_chain.extent.width,
-    auto_cast ctx.swap_chain.extent.height)
-  _set_scissor_cmd(command_buffer, 0, 0, ctx.swap_chain.extent.width, ctx.swap_chain.extent.height)
+  if rctx.ctx.__settings.support_negative_viewport_heights {
+    _set_viewport_cmd(command_buffer, 0, auto_cast ctx.swap_chain.extent.height, auto_cast ctx.swap_chain.extent.width,
+      -auto_cast ctx.swap_chain.extent.height)
+    _set_scissor_cmd(command_buffer, 0, 0, ctx.swap_chain.extent.width, ctx.swap_chain.extent.height)
+  } else {
+    _set_viewport_cmd(command_buffer, 0, 0, auto_cast ctx.swap_chain.extent.width,
+      auto_cast ctx.swap_chain.extent.height)
+    _set_scissor_cmd(command_buffer, 0, 0, ctx.swap_chain.extent.width, ctx.swap_chain.extent.height)
+  }
 
   // Queue Buffer Write
   MAX_DESC_SET_WRITES :: 8
