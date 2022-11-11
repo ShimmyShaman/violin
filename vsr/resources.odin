@@ -223,11 +223,11 @@ _create_resource :: proc(using rm: ^ResourceManager, resource_kind: ResourceKind
       // fmt.println("Created resource: ", rh)
       return
     case .Any:
-      fmt.println("Error: Cannot create resource of kind Any")
+      fmt.eprintln("Error: Cannot create resource of kind Any")
       err = .NotYetDetailed
       return
     case:
-      fmt.println("Resource type not supported:", resource_kind)
+      fmt.eprintln("Resource type not supported:", resource_kind)
       err = .NotYetDetailed
       return
   }
@@ -261,13 +261,13 @@ get_resource :: proc(using rm: ^ResourceManager, #any_int rh: ResourceHandle, lo
 
   res = resource_manager.resource_map[rh]
   if res == nil {
-    fmt.println("Resource not found:", rh)
+    fmt.eprintln("Resource not found:", rh)
     err = .ResourceNotFound
     return
   }
 
   if res.kind != kind_verification {
-    fmt.println("Resource kind mismatch:", res.kind, "!=", kind_verification)
+    fmt.eprintln("Resource kind mismatch:", res.kind, "!=", kind_verification)
     err = .ResourceKindMismatch
     return
   }
@@ -280,7 +280,7 @@ get_resource :: proc(using rm: ^ResourceManager, #any_int rh: ResourceHandle, lo
 destroy_resource_any :: proc(using ctx: ^Context, rh: ResourceHandle) -> Error {
   res := resource_manager.resource_map[rh]
   if res == nil {
-    fmt.println("Resource not found:", rh)
+    fmt.eprintln("Resource not found:", rh)
     return .ResourceNotFound
   }
 
@@ -929,7 +929,7 @@ create_depth_buffer :: proc(ctx: ^Context) -> (rh: ResourceHandle, err: Error) {
   // Fill it out
   db.format = _find_supported_format(ctx, preferred_depth_formats[:], .OPTIMAL, {.DEPTH_STENCIL_ATTACHMENT})
   if db.format == .UNDEFINED {
-    fmt.println("Error: Failed to find supported depth format")
+    fmt.eprintln("Error: Failed to find supported depth format")
     err = .NotYetDetailed
     return
   }
@@ -982,7 +982,7 @@ create_depth_buffer :: proc(ctx: ^Context) -> (rh: ResourceHandle, err: Error) {
   }
   vkres = vk.CreateImageView(ctx.device, &image_view_create_info, nil, &db.view)
   if vkres != .SUCCESS {
-    fmt.println("Error: Failed to create depth buffer image view:", vkres)
+    fmt.eprintln("Error: Failed to create depth buffer image view:", vkres)
     err = .NotYetDetailed
     return
   }
@@ -1015,7 +1015,7 @@ load_texture_from_file :: proc(using ctx: ^Context, filepath: cstring) -> (rh: T
   }
   
   image_size: int = auto_cast (tex_width * tex_height * STBI_rgb_alpha)
-  fmt.println(pixels)
+  // fmt.println("pixels:", pixels)
   // fmt.println("width:", tex_width, "height:", tex_height, "channels:", tex_channels, "image_size:", image_size)
 
   rh = create_texture(ctx, tex_width, tex_height, tex_channels, .ShaderReadOnly) or_return
@@ -1023,7 +1023,7 @@ load_texture_from_file :: proc(using ctx: ^Context, filepath: cstring) -> (rh: T
 
   write_to_texture(ctx, rh, pixels, image_size) or_return
 
-  fmt.printf("loaded %s> width:%i height:%i channels:%i\n", filepath, tex_width, tex_height, tex_channels);
+  // fmt.printf("loaded %s> width:%i height:%i channels:%i\n", filepath, tex_width, tex_height, tex_channels);
 
   return
 }
@@ -1054,7 +1054,7 @@ create_uniform_buffer :: proc(using ctx: ^Context, size_in_bytes: vk.DeviceSize,
         err = .NotYetDetailed
       }
     case:
-      fmt.println("create_uniform_buffer() > Unsupported buffer usage:", intended_usage)
+      fmt.eprintln("create_uniform_buffer() > Unsupported buffer usage:", intended_usage)
       err = .NotYetDetailed
   }
 
@@ -1350,7 +1350,9 @@ create_render_program :: proc(ctx: ^Context, info: ^RenderProgramCreateInfo) -> 
   // TODO -- may cause segmentation fault? check-it
   res := vk.CreateDescriptorSetLayout(ctx.device, &layout_create_info, nil, &rp.descriptor_layout);
   if res != .SUCCESS {
-    fmt.println("Failed to create descriptor set layout")
+    fmt.eprintln("Failed to create descriptor set layout")
+    err = .NotYetDetailed
+    return
   }
 
   // Pipeline
@@ -1417,7 +1419,7 @@ load_font :: proc(using ctx: ^Context, ttf_filepath: string, font_height: f32) -
   // Open the source file
   h_ttf, errno = os.open(ttf_filepath)
   if errno != os.ERROR_NONE {
-    fmt.printf("Error File I/O: couldn't open font path='%s' set full path accordingly\n", ttf_filepath)
+    fmt.eprintf("Error File I/O: couldn't open font path='%s' set full path accordingly\n", ttf_filepath)
     err = .NotYetDetailed
     return
   }
@@ -1426,7 +1428,7 @@ load_font :: proc(using ctx: ^Context, ttf_filepath: string, font_height: f32) -
   // read_success: bool
   ttf_buffer, read_success := os.read_entire_file_from_handle(h_ttf)
   if !read_success {
-    fmt.println("Could not read full ttf font file:", ttf_filepath)
+    fmt.eprintln("Could not read full ttf font file:", ttf_filepath)
     err = .NotYetDetailed
     return
   }
@@ -1452,7 +1454,7 @@ load_font :: proc(using ctx: ^Context, ttf_filepath: string, font_height: f32) -
 
   stb_res := stbtt.BakeFontBitmap(&ttf_buffer[0], 0, font_height, temp_bitmap, tex_width, tex_height, 32, 96, font.char_data)
   if stb_res < 1 {
-    fmt.println("ERROR Failed to bake font bitmap:", stb_res)
+    fmt.eprintln("ERROR Failed to bake font bitmap:", stb_res)
     err = .NotYetDetailed
     return
   }
@@ -1541,7 +1543,7 @@ load_font :: proc(using ctx: ^Context, ttf_filepath: string, font_height: f32) -
     // fmt.println("low_y0:", low_y0, "high_y1:", high_y1)
     font.bump_up_y_offset = high_y1 - 300
     // font.vertical_size = high_y1 - low_y0
-    fmt.println("font:", ttf_filepath, "height:", font_height, "bump_up_y_offset:", font.bump_up_y_offset)
+    // fmt.println("font:", ttf_filepath, "height:", font_height, "bump_up_y_offset:", font.bump_up_y_offset)
   }
 
   return
@@ -1555,7 +1557,7 @@ determine_text_display_dimensions :: proc(using ctx: ^Context, font: FontResourc
 
   for c, i in text {
     if c < auto_cast 32 || c > auto_cast 127 {
-      fmt.println("ERROR: determine_text_display_dimensions> character '%i' not supported.\n", c)
+      fmt.eprintln("ERROR: determine_text_display_dimensions> character '%i' not supported.\n", c)
       continue
     }
 

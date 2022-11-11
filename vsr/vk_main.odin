@@ -146,7 +146,7 @@ RenderPassConfigFlag :: enum vk.Flags {
 }
 
 VALIDATION_LAYERS := [?]cstring {
-  "VK_LAYER_KHRONOS_validation",
+  // "VK_LAYER_KHRONOS_validation",
 }
 
 init :: proc(violin_package_relative_path: string, support_negative_viewport_heights: bool = true) -> (ctx: ^Context, err: Error) {
@@ -161,7 +161,7 @@ init :: proc(violin_package_relative_path: string, support_negative_viewport_hei
   // Init
   result := auto_cast Init(INIT_VIDEO)
   if result != 0 {
-    fmt.println("Error initializing sdl2: ", result)
+    fmt.eprintln("Error initializing sdl2: ", result)
     err = .NotYetDetailed
     return
   }
@@ -169,7 +169,7 @@ init :: proc(violin_package_relative_path: string, support_negative_viewport_hei
   // Vulkan Library
   result = auto_cast Vulkan_LoadLibrary(nil)
   if result != 0 {
-    fmt.println("Error loading Vulkan Library: ", result)
+    fmt.eprintln("Error loading Vulkan Library: ", result)
     err = .NotYetDetailed
     return
   }
@@ -200,7 +200,7 @@ init_vulkan :: proc(using ctx: ^Context) -> Error {
   _create_surface_and_set_device(ctx) or_return
   
   // fmt.println("Queue Indices:");
-  for q, f in queue_indices do fmt.printf("  %v: %d\n", f, q);
+  // for q, f in queue_indices do fmt.printf("  %v: %d\n", f, q);
   
   _create_logical_device(ctx) or_return
   
@@ -274,7 +274,7 @@ compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8
   CACHE_DIRECTORY :: "bin/_sgen/" // Shader -- TODO label better
   glslc_LOCATION :: "/media/bug/rome/prog/shaderc/bin/glslc"
   if !os.exists(glslc_LOCATION) {
-    fmt.println("ERROR: need to set glslc_LOCATION to where it is (or make it accessable)")
+    fmt.eprintln("ERROR: need to set glslc_LOCATION to where it is (or make it accessable)")
     err = .NotYetDetailed
     return
   }
@@ -294,7 +294,7 @@ compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8
 
   ext_cache_path, maerr := strings.concatenate_safe([]string { CACHE_DIRECTORY, shader_file_name, ".spv" })
   if maerr != mem.Allocator_Error.None {
-    fmt.println("compile_shader > cache strings.concatenate_safe Memory Allocator Error:", maerr)
+    fmt.eprintln("compile_shader > cache strings.concatenate_safe Memory Allocator Error:", maerr)
     err = .NotYetDetailed
     return
   }
@@ -306,8 +306,8 @@ compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8
   // Open the source file
   h_src, errno = os.open(shader_src_path)
   if errno != os.ERROR_NONE {
-    fmt.printf("Error compile_shader(): couldn't open shader path='%s' set relative_src_path accordingly\n", shader_src_path)
-    fmt.println("--CurrentWorkingDirectory:", os.get_current_directory())
+    fmt.eprintf("Error compile_shader(): couldn't open shader path='%s' set relative_src_path accordingly\n", shader_src_path)
+    fmt.eprintln("--CurrentWorkingDirectory:", os.get_current_directory())
     libc.perror("File I/O Error:")
     err = .NotYetDetailed
     return
@@ -348,7 +348,7 @@ compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8
     cmd: string
     cmd, maerr = strings.concatenate_safe([]string { glslc_LOCATION, " -o ", ext_cache_path, " ", shader_src_path }) // -mfmt=bin
     if maerr != .None {
-      fmt.println("strings.concatenate_safe: mem allocator error")
+      fmt.eprintln("strings.concatenate_safe: mem allocator error")
       err = .NotYetDetailed
       return
     }
@@ -362,7 +362,7 @@ compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8
     // Open it
     h_cache, errno = os.open(ext_cache_path)
     if errno != os.ERROR_NONE {
-      fmt.println("Couldn't obtain compiled shader file:", ext_cache_path)
+      fmt.eprintln("Couldn't obtain compiled shader file:", ext_cache_path)
       err = .NotYetDetailed
       return
     }
@@ -373,7 +373,7 @@ compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8
   read_success: bool
   data, read_success = os.read_entire_file_from_handle(h_cache)
   if !read_success {
-    fmt.println("Could not read full file from cache file handle:", ext_cache_path, " >", h_cache)
+    fmt.eprintln("Could not read full file from cache file handle:", ext_cache_path, " >", h_cache)
     err = .NotYetDetailed
     return
   }
@@ -515,7 +515,7 @@ _set_physical_device_queue_families :: proc(surface: vk.SurfaceKHR, physical_dev
   for i in 0..<queue_count {
     vkres := vk.GetPhysicalDeviceSurfaceSupportKHR(physical_device, i, surface, &p_supports_present[i])
     if vkres != .SUCCESS {
-      fmt.println("Error GetPhysicalDeviceSurfaceSupportKHR:", vkres)
+      fmt.eprintln("Error GetPhysicalDeviceSurfaceSupportKHR:", vkres)
       err = .NotYetDetailed
       return
     }
@@ -1239,8 +1239,8 @@ create_sync_objects :: proc(using ctx: ^Context) -> Error {
 
   width, height := get_window_size(window)
   if width == auto_cast swap_chain.extent.width && height == auto_cast swap_chain.extent.height {
-    fmt.println("same dimensions")
-    return .Success
+    // fmt.println("same dimensions") TODO???
+    // return .Success
   }
 
   // vk.DeviceWaitIdle(device)

@@ -130,7 +130,7 @@ init_stamp_batch_renderer :: proc(using ctx: ^Context, render_pass_config: Rende
 	// IsPresent            = 1,
   if .HasDepthBuffer in render_pass_config {
     err = .NotYetDetailed
-    fmt.println("Error: init_stamp_batch_renderer>Depth buffer not supported in stamp batch renderer")
+    fmt.eprintln("Error: init_stamp_batch_renderer>Depth buffer not supported in stamp batch renderer")
     return
   }
   // draw_rp_config, present_rp_config: RenderPassConfigFlags

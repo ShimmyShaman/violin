@@ -143,6 +143,12 @@ begin_render_pass :: proc(using rctx: ^RenderContext, render_pass_handle: Render
 @(private) _begin_render_pass :: proc(using rctx: ^RenderContext, render_pass_handle: RenderPassResourceHandle) -> Error {
   // fmt.println("begin_render_pass: ", rctx.status)
 
+  // render_context.present_framebuffer = swap_chain.present_framebuffers[render_context.swap_chain_index]
+  // render_context.framebuffer_3d = swap_chain.framebuffers_3d[render_context.swap_chain_index]
+  rp: ^RenderPass = auto_cast get_resource(&rctx.ctx.resource_manager, auto_cast render_pass_handle) or_return
+  // fmt.println("--render_pass.handle: ", render_pass_handle)
+  // fmt.println("--render_pass.config: ", rp.config)
+  
   // Validate State
   switch rctx.status {
     case .RenderPass, .StampRenderPass:
@@ -151,18 +157,17 @@ begin_render_pass :: proc(using rctx: ^RenderContext, render_pass_handle: Render
     case .EndedRenderPass:
       // Empty
     case .Initialized:
+      // if .HasPreviousColorPass in rp.config {
+      //   fmt.eprintln("Error: Cannot begin a render pass with a previous color pass when the render context is in the " \
+      //     + "Initialized state")
+      //   return .NotYetDetailed
+      // }
       // Empty
     case .Idle, .Initializing:
       fmt.eprintln("Error: Invalid begin_render_pass Render Context State:", rctx.status)
       return .NotYetDetailed
   }
 
-  // render_context.present_framebuffer = swap_chain.present_framebuffers[render_context.swap_chain_index]
-  // render_context.framebuffer_3d = swap_chain.framebuffers_3d[render_context.swap_chain_index]
-  rp: ^RenderPass = auto_cast get_resource(&rctx.ctx.resource_manager, auto_cast render_pass_handle) or_return
-  // fmt.println("--render_pass.handle: ", render_pass_handle)
-  // fmt.println("--render_pass.config: ", rp.config)
-  
   // -- Render Pass
   clear_value_count: u32 = 0
   if .HasPreviousColorPass not_in rp.config do clear_value_count += 1
