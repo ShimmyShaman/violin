@@ -171,7 +171,11 @@ init_stamp_batch_renderer :: proc(using ctx: ^Context, render_pass_config: Rende
 
   get_shader_path :: proc(violin_package_relative_path: string, name: string) -> (shader_path: string, err: Error) {
     aerr: mem.Allocator_Error
-    shader_path, aerr =  strings.concatenate_safe({violin_package_relative_path, name},
+    proper_path := violin_package_relative_path
+    if len(violin_package_relative_path) > 0 && violin_package_relative_path[len(violin_package_relative_path) - 1] != '/' {
+      proper_path = strings.join({violin_package_relative_path, "/"}, "")
+    }
+    shader_path, aerr =  strings.concatenate_safe({proper_path, name},
       context.temp_allocator)
     if aerr != .None {
       err = .AllocationFailed
