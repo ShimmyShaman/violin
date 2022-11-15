@@ -271,7 +271,7 @@ compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8
   data = nil
 
   // Check
-  CACHE_DIRECTORY :: "bin/_sgen/" // Shader -- TODO label better
+  CACHE_DIRECTORY :: "data/_sgen/" // Shader -- TODO label better
   glslc_LOCATION :: "/media/bug/rome/prog/shaderc/bin/glslc"
   if !os.exists(glslc_LOCATION) {
     fmt.eprintln("ERROR: need to set glslc_LOCATION to where it is (or make it accessable)")
