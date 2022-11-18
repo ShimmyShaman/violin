@@ -601,7 +601,9 @@ _determine_device_suitability :: proc(using ctx: ^Context, dev: vk.PhysicalDevic
   features: vk.PhysicalDeviceFeatures;
   vk.GetPhysicalDeviceProperties(dev, &props);
   vk.GetPhysicalDeviceFeatures(dev, &features);
-  
+  // fmt.println("Device:\n--Props:\n", props, "\n--Features:\n", features)
+  fmt.println("Device:", cstring(&props.deviceName[0]), ":", props.deviceType, ":", props.apiVersion)
+
   if props.deviceType == .DISCRETE_GPU do score += 1000;
   score += cast(int)props.limits.maxImageDimension2D;
   
@@ -630,7 +632,7 @@ _create_surface_and_set_device :: proc(using ctx: ^Context) -> Error {
   }
   devices := make([]vk.PhysicalDevice, device_count);
   defer delete(devices)
-  vk.EnumeratePhysicalDevices(instance, &device_count, raw_data(devices));
+  vk.EnumeratePhysicalDevices(instance, &device_count, raw_data(devices))
 
   // Set required device extensions
   append_elem(&ctx.__settings.device_extensions, vk.KHR_SWAPCHAIN_EXTENSION_NAME)
