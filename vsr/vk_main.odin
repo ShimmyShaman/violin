@@ -272,15 +272,31 @@ compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8
 
   // Check
   CACHE_DIRECTORY :: "data/_sgen/" // Shader -- TODO label better
-  glslc_LOCATION :: "/media/bug/rome/prog/shaderc/bin/glslc"
+  glslc_LOCATION :: "/media/bug/rome/prog/shaderc/bin/glslc" // TODO -- Configurable
   if !os.exists(glslc_LOCATION) {
     fmt.eprintln("ERROR: need to set glslc_LOCATION to where it is (or make it accessable)")
     err = .NotYetDetailed
     return
   }
+  // fmt.println("os.exists(CACHE_DIRECTORY):", os.exists(CACHE_DIRECTORY))
   if !os.exists(CACHE_DIRECTORY) {
-    os.make_directory(CACHE_DIRECTORY)
+    // TODO -- make each subdirectory
+    if CACHE_DIRECTORY != "data/_sgen/" {
+      fmt.eprintln("ERROR: CACHE_DIRECTORY != data/_sgen/ TODO")
+      err = .NotYetDetailed
+      return
+    }
+    errno := os.make_directory("data")
+    // fmt.println("os.exists(data):", os.exists("data"))
+
+    if errno != 0 do errno = os.make_directory(CACHE_DIRECTORY)
+    if errno != 0 {
+      fmt.eprintln("ERROR: could not make directory:", CACHE_DIRECTORY, " errno:", errno)
+      err = .NotYetDetailed
+      return
+    }
   }
+  // fmt.println("os.exists(CACHE_DIRECTORY):", os.exists(CACHE_DIRECTORY))
   
   shader_file_name: string
   i := strings.last_index_any(shader_src_path, "/\\")
@@ -363,6 +379,7 @@ compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8
     h_cache, errno = os.open(ext_cache_path)
     if errno != os.ERROR_NONE {
       fmt.eprintln("Couldn't obtain compiled shader file:", ext_cache_path)
+      fmt.eprintln("--CurrentWorkingDirectory:", os.get_current_directory())
       err = .NotYetDetailed
       return
     }
@@ -374,6 +391,7 @@ compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8
   data, read_success = os.read_entire_file_from_handle(h_cache)
   if !read_success {
     fmt.eprintln("Could not read full file from cache file handle:", ext_cache_path, " >", h_cache)
+    fmt.eprintln("--CurrentWorkingDirectory:", os.get_current_directory())
     err = .NotYetDetailed
     return
   }
