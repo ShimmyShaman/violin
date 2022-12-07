@@ -118,8 +118,45 @@ Vertex2UV :: struct {
 //   void *char_data;
 // } mcr_font_resource;
 
+StampShaders :: struct {
+  colored_rect_vert_binary: []u8,
+  colored_rect_frag_binary: []u8,
+  textured_rect_vert_binary: []u8,
+  textured_rect_frag_binary: []u8,
+  stb_font_vert_binary: []u8,
+  stb_font_frag_binary: []u8,
+}
 
-init_stamp_batch_renderer :: proc(using ctx: ^Context, render_pass_config: RenderPassConfigFlags,
+load_stamp_shaders(shader_directory: string) -> (shaders: StampShaders, err: Error) {
+  shaders.colored_rect_vert_binary = load_binary_file(shader_directory, "colored_rect.vert.spv") or_return
+  shaders.colored_rect_frag_binary = load_binary_file(shader_directory, "colored_rect.frag.spv") or_return
+  shaders.textured_rect_vert_binary = load_binary_file(shader_directory, "textured_rect.vert.spv") or_return
+  shaders.textured_rect_frag_binary = load_binary_file(shader_directory, "textured_rect.frag.spv") or_return
+  shaders.stb_font_vert_binary = load_binary_file(shader_directory, "stb_font.vert.spv") or_return
+  shaders.stb_font_frag_binary = load_binary_file(shader_directory, "stb_font.frag.spv") or_return
+  return
+}
+
+load_binary_file :: proc(directory: string, filename: string) -> (data: []u8, err: Error) {
+  file_path: string
+  if directory[len(directory) - 1] == "/" {
+    file_path = strings.join_safe({directory, filename}, "")
+  } else {
+    file_path = strings.join_safe({directory, filename}, "/")
+  }
+
+  success: bool
+  data, success = os.read_entire_file_from_filename(file_path) or_return
+  if !success {
+    err = .NotYetDetailed
+    fmt.eprintln("Error: load_binary_file>Could not load file:", file_path)
+    return
+  }
+  
+  return
+}
+
+init_stamp_batch_renderer :: proc(using ctx: ^Context, shaders: ^StampShaders, render_pass_config: RenderPassConfigFlags,
   uniform_buffer_size := 128 * 256) -> (stamph: StampRenderResourceHandle, err: Error) {
   // Create the resource
   stamph = auto_cast _create_resource(&resource_manager, .StampRenderResource) or_return
@@ -169,20 +206,6 @@ init_stamp_batch_renderer :: proc(using ctx: ^Context, render_pass_config: Rende
     2, 1, 3,
   }
 
-  get_shader_path :: proc(violin_package_relative_path: string, name: string) -> (shader_path: string, err: Error) {
-    aerr: mem.Allocator_Error
-    proper_path := violin_package_relative_path
-    if len(violin_package_relative_path) > 0 && violin_package_relative_path[len(violin_package_relative_path) - 1] != '/' {
-      proper_path = strings.join({violin_package_relative_path, "/"}, "")
-    }
-    shader_path, aerr =  strings.concatenate_safe({proper_path, name},
-      context.temp_allocator)
-    if aerr != .None {
-      err = .AllocationFailed
-    }
-    return
-  }
-
   // Bindings
   ubo_only_binding := [?]vk.DescriptorSetLayoutBinding {
     vk.DescriptorSetLayoutBinding {
@@ -215,8 +238,8 @@ init_stamp_batch_renderer :: proc(using ctx: ^Context, render_pass_config: Rende
   }
   render_program_create_info := RenderProgramCreateInfo {
     pipeline_config = PipelineCreateConfig {
-      vertex_shader_filepath = get_shader_path(ctx.__settings.violin_package_relative_path, "violin/shaders/colored_rect.vert") or_return,
-      fragment_shader_filepath = get_shader_path(ctx.__settings.violin_package_relative_path, "violin/shaders/colored_rect.frag") or_return,
+      vertex_shader_binary = shaders.colored_rect_vert,
+      fragment_shader_binary = shaders.colored_rect_frag,
       render_pass = stampr.render_pass,
     },
     vertex_size = size_of(Vertex2),
@@ -240,8 +263,8 @@ init_stamp_batch_renderer :: proc(using ctx: ^Context, render_pass_config: Rende
   }
   render_program_create_info = RenderProgramCreateInfo {
     pipeline_config = PipelineCreateConfig {
-      vertex_shader_filepath = get_shader_path(ctx.__settings.violin_package_relative_path, "violin/shaders/textured_rect.vert") or_return,
-      fragment_shader_filepath = get_shader_path(ctx.__settings.violin_package_relative_path, "violin/shaders/textured_rect.frag") or_return,
+      vertex_shader_binary = shaders.textured_rect_vert,
+      fragment_shader_binary = shaders.textured_rect_frag,
       render_pass = stampr.render_pass,
     },
     vertex_size = size_of(Vertex2UV),
@@ -252,8 +275,8 @@ init_stamp_batch_renderer :: proc(using ctx: ^Context, render_pass_config: Rende
 
   render_program_create_info = RenderProgramCreateInfo {
     pipeline_config = PipelineCreateConfig {
-      vertex_shader_filepath = get_shader_path(ctx.__settings.violin_package_relative_path, "violin/shaders/stb_font.vert") or_return,
-      fragment_shader_filepath = get_shader_path(ctx.__settings.violin_package_relative_path, "violin/shaders/stb_font.frag") or_return,
+      vertex_shader_binary = shaders.stb_font_vert,
+      fragment_shader_binary = shaders.stb_font_frag,
       render_pass = stampr.render_pass,
     },
     vertex_size = size_of(Vertex2UV),

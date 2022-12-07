@@ -174,8 +174,8 @@ InputAttribute :: struct {
 
 PipelineCreateConfig :: struct {
   render_pass: RenderPassResourceHandle,
-  vertex_shader_filepath: string,
-  fragment_shader_filepath: string,
+  vertex_shader_binary: []u8,
+  fragment_shader_binary: []u8,
   cull_mode: vk.CullModeFlags,
   front_face: vk.FrontFace,
 }

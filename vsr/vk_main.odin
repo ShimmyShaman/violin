@@ -40,7 +40,6 @@ Error :: enum {
 }
 
 InitializedSettings :: struct {
-  violin_package_relative_path: string,
   support_negative_viewport_heights: bool,
   device_extensions: [dynamic]cstring,
 }
@@ -149,13 +148,12 @@ VALIDATION_LAYERS := [?]cstring {
   // "VK_LAYER_KHRONOS_validation",
 }
 
-init :: proc(violin_package_relative_path: string, support_negative_viewport_heights: bool = true) -> (ctx: ^Context, err: Error) {
+init :: proc(support_negative_viewport_heights: bool = true) -> (ctx: ^Context, err: Error) {
   using sdl2
 
   err = .Success
 
   ctx = new(Context)
-  ctx.__settings.violin_package_relative_path = strings.clone(violin_package_relative_path)
   ctx.__settings.support_negative_viewport_heights = support_negative_viewport_heights
 
   // Init
@@ -236,7 +234,6 @@ quit :: proc(using ctx: ^Context) {
   sdl2.Vulkan_UnloadLibrary()
   sdl2.Quit()
 
-  delete_string(ctx.__settings.violin_package_relative_path)
   delete_dynamic_array(ctx.__settings.device_extensions)
   free(ctx)
 }
@@ -262,141 +259,6 @@ deinit_vulkan :: proc(using ctx: ^Context) {
   vk.DestroyDevice(device, nil);
   vk.DestroySurfaceKHR(instance, surface, nil);
   destroy_instance(ctx)
-}
-
-/*
-  Compiles the shader from the src path relative to SHADER_DIRECTORY
-*/
-compile_shader :: proc(shader_src_path: string, kind: ShaderKind) -> (data: []u8, err: Error) {
-  data = nil
-
-  // Check
-  CACHE_DIRECTORY :: "data/_sgen/" // Shader -- TODO label better
-  glslc_LOCATION :: "/media/bug/rome/prog/shaderc/bin/glslc" // TODO -- Configurable
-  if !os.exists(glslc_LOCATION) {
-    fmt.eprintln("ERROR: need to set glslc_LOCATION to where it is (or make it accessable)")
-    err = .NotYetDetailed
-    return
-  }
-  // fmt.println("os.exists(CACHE_DIRECTORY):", os.exists(CACHE_DIRECTORY))
-  if !os.exists(CACHE_DIRECTORY) {
-    // TODO -- make each subdirectory
-    if CACHE_DIRECTORY != "data/_sgen/" {
-      fmt.eprintln("ERROR: CACHE_DIRECTORY != data/_sgen/ TODO")
-      err = .NotYetDetailed
-      return
-    }
-    errno := os.make_directory("data")
-    // fmt.println("os.exists(data):", os.exists("data"))
-
-    if errno != 0 do errno = os.make_directory(CACHE_DIRECTORY)
-    if errno != 0 {
-      fmt.eprintln("ERROR: could not make directory:", CACHE_DIRECTORY, " errno:", errno)
-      err = .NotYetDetailed
-      return
-    }
-  }
-  // fmt.println("os.exists(CACHE_DIRECTORY):", os.exists(CACHE_DIRECTORY))
-  
-  shader_file_name: string
-  i := strings.last_index_any(shader_src_path, "/\\")
-  if i > 0 && i + 1 < len(shader_src_path) {
-    shader_file_name = strings.clone(shader_src_path[i + 1:])
-  } else {
-    shader_file_name = strings.clone(shader_src_path)
-  }
-  defer delete_string(shader_file_name)
-  // fmt.println("shader_file_name:", shader_file_name)
-
-  ext_cache_path, maerr := strings.concatenate_safe([]string { CACHE_DIRECTORY, shader_file_name, ".spv" })
-  if maerr != mem.Allocator_Error.None {
-    fmt.eprintln("compile_shader > cache strings.concatenate_safe Memory Allocator Error:", maerr)
-    err = .NotYetDetailed
-    return
-  }
-  defer delete(ext_cache_path)
-
-  errno: os.Errno
-  h_src, h_cache: os.Handle
-
-  // Open the source file
-  h_src, errno = os.open(shader_src_path)
-  if errno != os.ERROR_NONE {
-    fmt.eprintf("Error compile_shader(): couldn't open shader path='%s' set relative_src_path accordingly\n", shader_src_path)
-    fmt.eprintln("--CurrentWorkingDirectory:", os.get_current_directory())
-    libc.perror("File I/O Error:")
-    err = .NotYetDetailed
-    return
-  }
-  defer os.close(h_src)
-
-  // Attempt to open the cache file instead of recompiling
-  cache_file_info: os.File_Info
-  // if os.exists(ext_cache_path) {
-  //   cache_file_info, errno = os.stat(ext_cache_path)
-  //   if errno != os.ERROR_Ok {
-  //     fmt.println("Couldn't obtain file info for cache shader file:", ext_cache_path)
-  //     err = cast(int) errno
-  //     return
-  //   }
-
-  //   src_file_info: os.File_Info
-  //   src_file_info, errno = os.stat(ext_src_path)
-  //   if errno != os.ERROR_Ok {
-  //     fmt.println("Couldn't obtain file info for src shader file:", ext_src_path)
-  //     err = cast(int) errno
-  //     return
-  //   }
-
-  //   if cache_file_info.modification_time._nsec > src_file_info.modification_time._nsec {
-  //     // Cache compiled file is more recent than source shader file
-  //     // -- Use that
-  //     h_cache, errno = os.open(ext_cache_path)
-  //     if errno != os.ERROR_Ok {
-  //       // Ignore and just recompile anyway
-  //       h_cache = os.Handle(0)
-  //     }
-  //   }
-  // }
-
-  if h_cache == os.Handle(0) {
-    // Compile the file via a commandline call
-    cmd: string
-    cmd, maerr = strings.concatenate_safe([]string { glslc_LOCATION, " -o ", ext_cache_path, " ", shader_src_path }) // -mfmt=bin
-    if maerr != .None {
-      fmt.eprintln("strings.concatenate_safe: mem allocator error")
-      err = .NotYetDetailed
-      return
-    }
-    defer delete(cmd)
-    
-    cmd_cstr := strings.clone_to_cstring(cmd)
-    defer delete(cmd_cstr)
-  
-    system(cmd_cstr)
-
-    // Open it
-    h_cache, errno = os.open(ext_cache_path)
-    if errno != os.ERROR_NONE {
-      fmt.eprintln("Couldn't obtain compiled shader file:", ext_cache_path)
-      fmt.eprintln("--CurrentWorkingDirectory:", os.get_current_directory())
-      err = .NotYetDetailed
-      return
-    }
-    cache_file_info, errno = os.stat(ext_cache_path)
-  }
-  defer os.close(h_cache)
-
-  read_success: bool
-  data, read_success = os.read_entire_file_from_handle(h_cache)
-  if !read_success {
-    fmt.eprintln("Could not read full file from cache file handle:", ext_cache_path, " >", h_cache)
-    fmt.eprintln("--CurrentWorkingDirectory:", os.get_current_directory())
-    err = .NotYetDetailed
-    return
-  }
-
-  return
 }
 
 set_vulkan_extensions :: proc(ctx: ^Context) {
@@ -933,17 +795,9 @@ create_swap_chain_image_views :: proc(using ctx: ^Context) -> Error {
 
 create_graphics_pipeline :: proc(ctx: ^Context, pipeline_config: ^PipelineCreateConfig, vertex_binding_desc: ^vk.VertexInputBindingDescription,
   vertex_attributes: []vk.VertexInputAttributeDescription, descriptor_layout: [^]vk.DescriptorSetLayout) -> (pipeline: Pipeline, err: Error) {
-  // fmt.println("Creating Graphics Pipeline...", pipeline_config.render_pass)
-  // Create Shader Modules
-  vs_code := compile_shader(pipeline_config.vertex_shader_filepath, .Vertex) or_return
-  fs_code := compile_shader(pipeline_config.fragment_shader_filepath, .Fragment) or_return
-  defer {
-    delete(vs_code)
-    delete(fs_code)
-  }
-  
-  vs_shader := create_shader_module(ctx, vs_code) or_return
-  fs_shader := create_shader_module(ctx, fs_code) or_return
+  // Create the Shaders
+  vs_shader := create_shader_module(ctx, pipeline_config.vertex_shader_binary) or_return
+  fs_shader := create_shader_module(ctx, pipeline_config.fragment_shader_binary) or_return
   defer {
     vk.DestroyShaderModule(ctx.device, vs_shader, nil);
     vk.DestroyShaderModule(ctx.device, fs_shader, nil);
