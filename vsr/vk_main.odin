@@ -148,7 +148,8 @@ VALIDATION_LAYERS := [?]cstring {
   // "VK_LAYER_KHRONOS_validation",
 }
 
-init :: proc(support_negative_viewport_heights: bool = true, width: #any_int i32 = 960, height: #any_int i32 = 600) -> (ctx: ^Context, err: Error) {
+init :: proc(#any_int window_width: int = 960, #any_int window_height: int = 600, support_negative_viewport_heights: bool = true,
+  window_bordered: bool = true) -> (ctx: ^Context, err: Error) {
   using sdl2
 
   err = .Success
@@ -173,9 +174,8 @@ init :: proc(support_negative_viewport_heights: bool = true, width: #any_int i32
   }
 
   // Window
-  ctx.window = CreateWindow("OdWin", WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, width, height,
+  ctx.window = CreateWindow("OdWin", WINDOWPOS_UNDEFINED, WINDOWPOS_UNDEFINED, auto_cast window_width, auto_cast window_height,
     WINDOW_SHOWN | WINDOW_RESIZABLE | WINDOW_VULKAN)
-  sdl2.SetWindowBordered(ctx.window, false)
 
   init_vulkan(ctx,) or_return
   return
