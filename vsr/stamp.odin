@@ -119,34 +119,56 @@ Vertex2UV :: struct {
 // } mcr_font_resource;
 
 StampShaders :: struct {
-  colored_rect_vert_binary: []u8,
-  colored_rect_frag_binary: []u8,
-  textured_rect_vert_binary: []u8,
-  textured_rect_frag_binary: []u8,
-  stb_font_vert_binary: []u8,
-  stb_font_frag_binary: []u8,
+  colored_rect_vert: []u8,
+  colored_rect_frag: []u8,
+  textured_rect_vert: []u8,
+  textured_rect_frag: []u8,
+  stb_font_vert: []u8,
+  stb_font_frag: []u8,
 }
 
-load_stamp_shaders(shader_directory: string) -> (shaders: StampShaders, err: Error) {
-  shaders.colored_rect_vert_binary = load_binary_file(shader_directory, "colored_rect.vert.spv") or_return
-  shaders.colored_rect_frag_binary = load_binary_file(shader_directory, "colored_rect.frag.spv") or_return
-  shaders.textured_rect_vert_binary = load_binary_file(shader_directory, "textured_rect.vert.spv") or_return
-  shaders.textured_rect_frag_binary = load_binary_file(shader_directory, "textured_rect.frag.spv") or_return
-  shaders.stb_font_vert_binary = load_binary_file(shader_directory, "stb_font.vert.spv") or_return
-  shaders.stb_font_frag_binary = load_binary_file(shader_directory, "stb_font.frag.spv") or_return
+load_stamp_shaders :: proc(shader_directory: string) -> (shaders: ^StampShaders, err: Error) {
+  shaders = new(StampShaders)
+  shaders.colored_rect_vert = _load_binary_file(shader_directory, "colored_rect.vert.spv") or_return
+  shaders.colored_rect_frag = _load_binary_file(shader_directory, "colored_rect.frag.spv") or_return
+  shaders.textured_rect_vert = _load_binary_file(shader_directory, "textured_rect.vert.spv") or_return
+  shaders.textured_rect_frag = _load_binary_file(shader_directory, "textured_rect.frag.spv") or_return
+  shaders.stb_font_vert = _load_binary_file(shader_directory, "stb_font.vert.spv") or_return
+  shaders.stb_font_frag = _load_binary_file(shader_directory, "stb_font.frag.spv") or_return
   return
 }
 
-load_binary_file :: proc(directory: string, filename: string) -> (data: []u8, err: Error) {
+destroy_stamp_shaders :: proc(shaders: ^^StampShaders) {
+  ps := shaders^
+  if ps == nil do return 
+
+  if ps.colored_rect_vert != nil do delete_slice(ps.colored_rect_vert)
+  if ps.colored_rect_frag != nil do delete_slice(ps.colored_rect_frag)
+  if ps.textured_rect_vert != nil do delete_slice(ps.textured_rect_vert)
+  if ps.textured_rect_frag != nil do delete_slice(ps.textured_rect_frag)
+  if ps.stb_font_vert != nil do delete_slice(ps.stb_font_vert)
+  if ps.stb_font_frag != nil do delete_slice(ps.stb_font_frag)
+
+  mem.free(ps)
+  shaders^ = nil
+}
+
+@(private)_load_binary_file :: proc(directory: string, filename: string) -> (data: []u8, err: Error) {
   file_path: string
-  if directory[len(directory) - 1] == "/" {
-    file_path = strings.join_safe({directory, filename}, "")
+  aerr: mem.Allocator_Error
+  if directory[len(directory) - 1] == '/' {
+    file_path, aerr = strings.join_safe({directory, filename}, "")
   } else {
-    file_path = strings.join_safe({directory, filename}, "/")
+    file_path, aerr = strings.join_safe({directory, filename}, "/")
+  }
+  if aerr != .None {
+    err = .AllocationFailed
+    fmt.eprintln("Error: load_binary_file>Could not join strings:", directory, filename)
+    return
   }
 
   success: bool
-  data, success = os.read_entire_file_from_filename(file_path) or_return
+  data, success = os.read_entire_file_from_filename(file_path)
   if !success {
     err = .NotYetDetailed
     fmt.eprintln("Error: load_binary_file>Could not load file:", file_path)
