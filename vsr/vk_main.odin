@@ -14,12 +14,6 @@ import vk "vendor:vulkan"
 
 import vma "violin:odin-vma"
 
-foreign import alibc "system:c"
-@(default_calling_convention="c")
-foreign alibc {
-    system :: proc(cmd: cstring) -> c.int ---
-}
-
 // mat4 :: distinct matrix[4,4]f32
 
 MAX_FRAMES_IN_FLIGHT :: 2
