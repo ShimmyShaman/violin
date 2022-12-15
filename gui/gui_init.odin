@@ -63,7 +63,7 @@ _ControlDelegates :: struct {
 
 _ControlInfo :: struct {
   ctype: ControlType,
-  _layout: _ControlLayout,
+  using _layout: _ControlLayout,
   _delegates: _ControlDelegates,
   id: string,
   parent: ^_ContainerControlInfo,
