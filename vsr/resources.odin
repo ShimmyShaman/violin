@@ -13,6 +13,7 @@ import stbtt "vendor:stb/truetype"
 
 import vma "violin:odin-vma"
 
+@(private) RESOURCES_DEBUG_VERBOSE_FLAG :: false
 @(private) INITIAL_RESOURCE_HANDLE_INDEX :: 1000
 
 // https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/usage_patterns.html
@@ -220,7 +221,7 @@ _create_resource :: proc(using rm: ^ResourceManager, resource_kind: ResourceKind
       res: ^Resource = auto_cast mem.alloc(size_of(Resource))
       resource_map[rh] = res
       res.kind = resource_kind
-      // fmt.println("Created resource: ", rh)
+      when RESOURCES_DEBUG_VERBOSE_FLAG do fmt.println("Created resource: ", rh)
       return
     case .Any:
       fmt.eprintln("Error: Cannot create resource of kind Any")
@@ -321,6 +322,8 @@ destroy_resource_any :: proc(using ctx: ^Context, rh: ResourceHandle) -> Error {
 }
 
 destroy_texture :: proc(using ctx: ^Context, rh: TextureResourceHandle) -> Error {
+  when RESOURCES_DEBUG_VERBOSE_FLAG do fmt.println("Destroying texture:", rh)
+
   res := __pop_resource_ptr(ctx, auto_cast rh, .Texture) or_return
 
   texture: ^Texture = auto_cast &res.data
@@ -338,6 +341,8 @@ destroy_texture :: proc(using ctx: ^Context, rh: TextureResourceHandle) -> Error
 }
 
 destroy_buffer :: proc(using ctx: ^Context, rh: BufferResourceHandle) -> Error {
+  when RESOURCES_DEBUG_VERBOSE_FLAG do fmt.println("Destroying buffer:", rh)
+  
   res := __pop_resource_ptr(ctx, auto_cast rh, .Buffer) or_return
 
   buffer: ^Buffer = auto_cast &res.data
@@ -349,6 +354,8 @@ destroy_buffer :: proc(using ctx: ^Context, rh: BufferResourceHandle) -> Error {
 }
 
 destroy_depth_buffer :: proc(using ctx: ^Context, rh: DepthBufferResourceHandle) -> Error {
+  when RESOURCES_DEBUG_VERBOSE_FLAG do fmt.println("Destroying depth buffer:", rh)
+
   res := __pop_resource_ptr(ctx, auto_cast rh, .DepthBuffer) or_return
 
   depth_buffer: ^DepthBuffer = auto_cast &res.data
@@ -360,6 +367,8 @@ destroy_depth_buffer :: proc(using ctx: ^Context, rh: DepthBufferResourceHandle)
 }
 
 destroy_render_pass :: proc(using ctx: ^Context, rh: RenderPassResourceHandle) -> Error {
+  when RESOURCES_DEBUG_VERBOSE_FLAG do fmt.println("Destroying render pass:", rh)
+
   res := __pop_resource_ptr(ctx, auto_cast rh, .RenderPass) or_return
 
   render_pass: ^RenderPass = auto_cast &res.data
@@ -383,6 +392,8 @@ destroy_render_pass :: proc(using ctx: ^Context, rh: RenderPassResourceHandle) -
 }
 
 destroy_render_program :: proc(using ctx: ^Context, rh: RenderProgramResourceHandle) -> Error {
+  when RESOURCES_DEBUG_VERBOSE_FLAG do fmt.println("Destroying render program:", rh)
+
   res := __pop_resource_ptr(ctx, auto_cast rh, .RenderProgram) or_return
 
   rp: ^RenderProgram = auto_cast &res.data
@@ -397,6 +408,8 @@ destroy_render_program :: proc(using ctx: ^Context, rh: RenderProgramResourceHan
 }
 
 destroy_stamp_render_resource :: proc(using ctx: ^Context, rh: StampRenderResourceHandle) -> Error {
+  when RESOURCES_DEBUG_VERBOSE_FLAG do fmt.println("Destroying stamp render resource:", rh)
+
   res := __pop_resource_ptr(ctx, auto_cast rh, .StampRenderResource) or_return
 
   stamp_render_resource: ^StampRenderResource = auto_cast &res.data
@@ -409,6 +422,8 @@ destroy_stamp_render_resource :: proc(using ctx: ^Context, rh: StampRenderResour
 }
 
 destroy_vertex_buffer :: proc(using ctx: ^Context, rh: VertexBufferResourceHandle) -> Error {
+  when RESOURCES_DEBUG_VERBOSE_FLAG do fmt.println("Destroying vertex buffer:", rh)
+
   res := __pop_resource_ptr(ctx, auto_cast rh, .VertexBuffer) or_return
 
   vertex_buffer: ^VertexBuffer = auto_cast &res.data
@@ -420,6 +435,8 @@ destroy_vertex_buffer :: proc(using ctx: ^Context, rh: VertexBufferResourceHandl
 }
 
 destroy_index_buffer :: proc(using ctx: ^Context, rh: IndexBufferResourceHandle) -> Error {
+  when RESOURCES_DEBUG_VERBOSE_FLAG do fmt.println("Destroying index buffer:", rh)
+
   res := __pop_resource_ptr(ctx, auto_cast rh, .IndexBuffer) or_return
 
   index_buffer: ^IndexBuffer = auto_cast &res.data
@@ -431,6 +448,8 @@ destroy_index_buffer :: proc(using ctx: ^Context, rh: IndexBufferResourceHandle)
 }
 
 destroy_font :: proc(using ctx: ^Context, rh: FontResourceHandle) -> Error {
+  when RESOURCES_DEBUG_VERBOSE_FLAG do fmt.println("Destroying font:", rh)
+
   res := __pop_resource_ptr(ctx, auto_cast rh, .Font) or_return
 
   font: ^Font = auto_cast &res.data
