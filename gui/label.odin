@@ -14,20 +14,7 @@ Label :: struct {
   clip_text_to_bounds: bool,
 }
 
-add_control :: proc(parent: rawptr, control: ^_ControlInfo) -> (err: vi.Error) {
-  // Obtain the gui root
-  gui_root: ^GUIRoot = _get_gui_root(parent) or_return
-
-  // TODO parent check
-  // _name_control(label, name_id) TODO -- proper name control
-  control.parent = auto_cast parent
-
-  append(&(cast(^_ContainerControlInfo)parent).children, auto_cast control)
-
-  return
-}
-
-create_label :: proc(name_id: string = "Label") -> (label: ^Label, err: vi.Error) {
+create_label :: proc(parent: ^Control, name_id: string = "Label") -> (label: ^Label, err: vi.Error) {
   // Create the label
   label = new(Label)
 
@@ -36,8 +23,8 @@ create_label :: proc(name_id: string = "Label") -> (label: ^Label, err: vi.Error
   label.id = name_id
   label.visible = true
 
-  label._delegates.determine_control_extents = _determine_label_extents
-  label._delegates.render_control = _render_label_control
+  label._delegates.determine_layout_extents = _determine_label_extents
+  label._delegates.render_control = _render_label
   label._delegates.update_control_layout = update_control_layout
   label._delegates.destroy_control = _destroy_label_control
 
@@ -62,10 +49,12 @@ create_label :: proc(name_id: string = "Label") -> (label: ^Label, err: vi.Error
 
   // label._layout.requires_layout_update = true
 
+  _add_control(parent, auto_cast label) or_return
+
   return
 }
 
-@(private) _render_label_control :: proc(using grc: ^GUIRenderContext, control: ^_ControlInfo) -> (err: vi.Error) {
+@(private) _render_label :: proc(using grc: ^GUIRenderContext, control: ^_ControlInfo) -> (err: vi.Error) {
   label: ^Label = auto_cast control
 
   // fmt.println("Rendering label: ", label.font)

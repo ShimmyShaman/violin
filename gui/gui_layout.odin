@@ -26,7 +26,7 @@ handle_gui_event :: proc(gui: ^GUIRoot, event: ^sdl2.Event) -> (handled: bool, e
 update_gui :: proc(gui_root: ^GUIRoot) -> (err: vi.Error) {
   if gui_root.children == nil do return
 
-  gui_root._delegates.determine_control_extents(gui_root, auto_cast gui_root, {}) or_return
+  gui_root._delegates.determine_layout_extents(gui_root, auto_cast gui_root, {}) or_return
 
   // Update the layout of each child
   w, h: c.int
@@ -36,7 +36,7 @@ update_gui :: proc(gui_root: ^GUIRoot) -> (err: vi.Error) {
   return
 }
 
-determine_control_extents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints) -> vi.Error {
+determine_layout_extents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints) -> vi.Error {
   MAX_EXTENT_VALUE :: 1000000
   layout := &control._layout
 
@@ -47,6 +47,7 @@ determine_control_extents :: proc(gui_root: ^GUIRoot, control: ^Control, restrai
   }
   else {
     if .Horizontal in restraints {
+
       if layout.min_width != 0 {
         layout.determined_width_extent = layout.min_width
       }
@@ -110,7 +111,7 @@ determine_control_extents :: proc(gui_root: ^GUIRoot, control: ^Control, restrai
     container: ^_ContainerControlInfo = auto_cast control
     if container.children != nil {
       for child in container.children {
-        child._delegates.determine_control_extents(gui_root, child, restraints)
+        child._delegates.determine_layout_extents(gui_root, child, restraints)
       }
     }
   }
@@ -183,7 +184,7 @@ determine_text_restrained_control_extents :: proc(gui_root: ^GUIRoot, control: ^
     container: ^_ContainerControlInfo = auto_cast control
     if container.children != nil {
       for child in container.children {
-        child._delegates.determine_control_extents(gui_root, child, restraints)
+        child._delegates.determine_layout_extents(gui_root, child, restraints)
       }
     }
   }

@@ -12,6 +12,7 @@ ControlType :: enum {
   Label = 100,
   Button,
   Textbox,
+  StackContainer,
 }
 
 ControlProperties :: distinct bit_set[ControlProperty; u8]
@@ -55,7 +56,7 @@ _ControlLayout :: struct {
 }
 
 _ControlDelegates :: struct {
-  determine_control_extents: ProcDetermineControlExtents,
+  determine_layout_extents: ProcDetermineControlExtents,
   render_control: ProcRenderControl,
   destroy_control: ProcDestroyControl,
   update_control_layout: ProcUpdateControlLayout,
@@ -79,7 +80,7 @@ _ContainerControlInfo :: struct {
 }
 
 GUIRoot :: struct {
-  using _pcnfo: _ContainerControlInfo,
+  using _confo: _ContainerControlInfo,
 
   // The context this gui is created and rendered in
   vctx: ^vi.Context,
@@ -111,7 +112,7 @@ create_gui_root :: proc(ctx: ^vi.Context, default_font_path: string = DEFAULT_FO
   gui_root = new(GUIRoot)
   gui_root.vctx = ctx
 
-  gui_root._delegates.determine_control_extents = determine_control_extents
+  gui_root._delegates.determine_layout_extents = determine_layout_extents
   gui_root._delegates.render_control = nil
   gui_root._delegates.destroy_control = nil
   gui_root._delegates.update_control_layout = update_control_layout
@@ -158,6 +159,19 @@ destroy_gui :: proc(ctx: ^vi.Context, gui_root: ^^GUIRoot) {
   }
 
   // todo("Handle case where control is not part of a gui")
+
+  return
+}
+
+@(private) _add_control :: proc(parent: rawptr, control: ^_ControlInfo) -> (err: vi.Error) {
+  // Obtain the gui root
+  gui_root: ^GUIRoot = _get_gui_root(parent) or_return
+
+  // TODO parent check
+  // _name_control(label, name_id) TODO -- proper name control
+  control.parent = auto_cast parent
+
+  append(&(cast(^_ContainerControlInfo)parent).children, auto_cast control)
 
   return
 }
