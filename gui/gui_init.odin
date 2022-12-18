@@ -167,6 +167,12 @@ destroy_gui :: proc(ctx: ^vi.Context, gui_root: ^^GUIRoot) {
   // Obtain the gui root
   gui_root: ^GUIRoot = _get_gui_root(parent) or_return
 
+  // Validate that all delegates are set
+  if control._delegates.determine_layout_extents == nil do return .MissingGUIProcDelegate
+  if control._delegates.render_control == nil do return .MissingGUIProcDelegate
+  if control._delegates.destroy_control == nil do return .MissingGUIProcDelegate
+  if control._delegates.update_control_layout == nil do return .MissingGUIProcDelegate
+
   // TODO parent check
   // _name_control(label, name_id) TODO -- proper name control
   control.parent = auto_cast parent

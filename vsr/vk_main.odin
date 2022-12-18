@@ -30,6 +30,8 @@ Error :: enum {
   InvalidState,
   VulkanPresentationResized,
   ResourceKindMismatch,
+  // GUI
+  MissingGUIProcDelegate,
   MAX_EXTENT_VALUE = 1000,
 }
 
