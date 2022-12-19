@@ -14,6 +14,7 @@ import stbtt "vendor:stb/truetype"
 import vma "violin:odin-vma"
 
 @(private) RESOURCES_DEBUG_VERBOSE_FLAG :: false
+@(private) RESOURCES_DEBUG_AUTO_CLEANUP_FLAG :: false
 @(private) INITIAL_RESOURCE_HANDLE_INDEX :: 1000
 
 // https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/usage_patterns.html
@@ -201,6 +202,47 @@ _init_resource_manager :: proc(using rm: ^ResourceManager) -> Error {
   return .Success
 }
 
+_end_resource_manager :: proc(ctx: ^Context) -> Error {
+  using rm: ^ResourceManager = &ctx.resource_manager
+  sync.lock(&rm._mutex)
+  defer sync.unlock(&rm._mutex)
+
+  if len(resource_map) > 0 {
+    if RESOURCES_DEBUG_AUTO_CLEANUP_FLAG do fmt.println("WARNING: resource_map not empty")
+
+    // Destroy Complex Types first
+    // -- Resources which contain other resources
+    cloop: for len(resource_map) > 0 {
+      for k, v in resource_map {
+        #partial switch v.kind {
+          case .Font, .StampRenderResource:
+            // Nothing
+          case:
+            continue
+        }
+        // fmt.println("k:", k, "v:", v)
+        if RESOURCES_DEBUG_AUTO_CLEANUP_FLAG do fmt.println("-- auto-destroying resource:", k, "-", v.kind)
+        destroy_resource_any(ctx, k)
+        continue cloop
+      }
+      break
+    }
+    
+    // Destroy remaining types
+    rloop: for len(resource_map) > 0 {
+      for k, v in resource_map {
+        // fmt.println("k:", k, "v:", v)
+        fmt.println("-- auto-destroying resource:", k, "-", v.kind)
+        destroy_resource_any(ctx, k)
+        continue rloop
+      }
+      break
+    }
+  }
+
+  return .Success
+}
+
 // TODO -- ? remove size ? not used at all
 _create_resource :: proc(using rm: ^ResourceManager, resource_kind: ResourceKind, size: u32 = 0) -> (rh: ResourceHandle, err: Error) {
   sync.lock(&rm._mutex)
@@ -262,7 +304,7 @@ get_resource :: proc(using rm: ^ResourceManager, #any_int rh: ResourceHandle, lo
 
   res = resource_manager.resource_map[rh]
   if res == nil {
-    fmt.eprintln("Resource not found:", rh)
+    fmt.eprintln("Resource not found(2):", rh)
     err = .ResourceNotFound
     return
   }
@@ -279,9 +321,11 @@ get_resource :: proc(using rm: ^ResourceManager, #any_int rh: ResourceHandle, lo
 }
 
 destroy_resource_any :: proc(using ctx: ^Context, rh: ResourceHandle) -> Error {
-  res := resource_manager.resource_map[rh]
+  res, okay := resource_manager.resource_map[rh]
   if res == nil {
-    fmt.eprintln("Resource not found:", rh)
+    fmt.println("res:", res, "okay:", okay)
+    fmt.println("resource_map:", resource_manager.resource_map)
+    fmt.eprintln("Resource not found(1):", rh)
     return .ResourceNotFound
   }
 

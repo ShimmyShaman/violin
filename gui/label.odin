@@ -1,6 +1,7 @@
 package violin_gui
 
 import "core:fmt"
+import "vendor:sdl2"
 
 import vi "violin:vsr"
 
@@ -27,6 +28,7 @@ create_label :: proc(parent: ^Control, name_id: string = "Label") -> (label: ^La
   label._delegates.render_control = _render_label
   label._delegates.update_control_layout = update_control_layout
   label._delegates.destroy_control = _destroy_label_control
+  label._delegates.handle_gui_event = _handle_label_input_event
 
   label.properties = { .TextRestrained }
   // label.bounds = vi.Rectf{0.0, 0.0, 80.0, 20.0}
@@ -71,6 +73,13 @@ create_label :: proc(parent: ^Control, name_id: string = "Label") -> (label: ^La
     vi.stamp_text(rctx, stamprr, label_font, label.text, label.bounds.x, label.bounds.y + label.bounds.height, &label.font_color) or_return
   }
 
+  return
+}
+
+@(private) _handle_label_input_event :: proc(control: ^Control, event: ^sdl2.Event) -> (handled: bool, err: vi.Error) {
+  label: ^Label = auto_cast control
+
+  fmt.println("GUI Input Event: ", event.type, " for label: ", label.text)
   return
 }
 

@@ -178,8 +178,6 @@ init :: proc(#any_int window_width: int = 960, #any_int window_height: int = 600
 }
 
 init_vulkan :: proc(using ctx: ^Context) -> Error {
-  _init_resource_manager(&ctx.resource_manager) or_return
-
   context.user_ptr = &instance;
   get_proc_address :: proc(p: rawptr, name: cstring) 
   {
@@ -205,8 +203,10 @@ init_vulkan :: proc(using ctx: ^Context) -> Error {
     _render_contexts[i].ctx = ctx
     _render_contexts[i].status = .Idle
   }
-  
+
+  // Resource Indices
   _init_vma(ctx) or_return
+  _init_resource_manager(&ctx.resource_manager) or_return
   
   // create_swap_chain(ctx)
   // create_swap_chain_image_views(ctx)
@@ -251,6 +251,7 @@ deinit_vulkan :: proc(using ctx: ^Context) {
   }
   vk.DestroyCommandPool(device, command_pool, nil);
   
+  _end_resource_manager(ctx)
   vma.DestroyAllocator(vma_allocator)
 
   vk.DestroyDevice(device, nil);

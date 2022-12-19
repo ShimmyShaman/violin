@@ -2,6 +2,8 @@ package violin_gui
 
 import "core:fmt"
 
+import sdl2 "vendor:sdl2"
+
 import vi "violin:vsr"
 
 Button :: struct {
@@ -82,6 +84,38 @@ create_button :: proc(parent: ^Control, name_id: string = "Button") -> (button: 
   text_width, text_height := vi.determine_text_display_dimensions(gui_root.vctx, button_font, button.text) or_return
 
   return determine_text_restrained_control_extents(gui_root, control, restraints, text_width, text_height)
+}
+
+// void _mcu_button_handle_gui_event(mc_node *button_node, mci_input_event *input_event)
+// {
+//   // printf("_mcu_button_handle_gui_event\n");
+//   mcu_button *button = (mcu_button *)button_node->data;
+
+//   if (!button->enabled)
+//     return;
+
+//   if (input_event->type == INPUT_EVENT_MOUSE_PRESS) {
+//     // printf("_mcu_button_handle_gui_event-1\n");
+//     if (button->left_click && (mc_mouse_button_code)input_event->button_code == MOUSE_BUTTON_LEFT) {
+//       // printf("_mcu_button_handle_gui_event-2\n");
+//       // Fire left-click
+//       // TODO fptr casting
+//       // TODO int this delegate for error handling
+//       void (*left_click)(mci_input_event *, mcu_button *) =
+//           (void (*)(mci_input_event *, mcu_button *))button->left_click;
+//       // TODO -- MCcall(below) - have to make handle input event int
+//       left_click(input_event, button);
+//     }
+//   }
+
+//   input_event->handled = true;
+// }
+
+@(private) _handle_button_input_event :: proc(control: ^Control, event: ^sdl2.Event) -> (handled: bool, err: vi.Error) {
+  button: ^Button = auto_cast control
+
+  fmt.println("GUI Input Event: ", event.type, " for button: ", button.text)
+  return
 }
 
 @(private) _destroy_button_control :: proc(ctx: ^vi.Context, control: ^Control) {

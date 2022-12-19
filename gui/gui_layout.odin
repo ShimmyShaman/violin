@@ -15,11 +15,13 @@ LayoutExtentRestraint :: enum(u8) {
 }
 
 ProcDetermineControlExtents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints) -> vi.Error
-ProcHandleGUIEvent :: proc(gui_root: ^GUIRoot, event: ^sdl2.Event) -> (handled: bool, err: vi.Error)
+ProcHandleGUIEvent :: proc(control: ^Control, event: ^sdl2.Event) -> (handled: bool, err: vi.Error)
 ProcUpdateControlLayout :: proc(control: ^Control, available_area: vi.Rectf, update_x: bool = true, update_y: bool = true,
   update_width: bool = true, update_height: bool = true, update_children: bool = true)
 
-handle_gui_event :: proc(gui: ^GUIRoot, event: ^sdl2.Event) -> (handled: bool, err: vi.Error) {
+handle_gui_event :: proc(control: ^Control, event: ^sdl2.Event) -> (handled: bool, err: vi.Error) {
+  fmt.println("GUI Event:", event.type, " - ", control.ctype)
+  handled = true
   return
 }
 

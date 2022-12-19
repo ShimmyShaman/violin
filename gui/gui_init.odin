@@ -60,6 +60,7 @@ _ControlDelegates :: struct {
   render_control: ProcRenderControl,
   destroy_control: ProcDestroyControl,
   update_control_layout: ProcUpdateControlLayout,
+  handle_gui_event: ProcHandleGUIEvent,
 }
 
 _ControlInfo :: struct {
@@ -168,11 +169,27 @@ destroy_gui :: proc(ctx: ^vi.Context, gui_root: ^^GUIRoot) {
   gui_root: ^GUIRoot = _get_gui_root(parent) or_return
 
   // Validate that all delegates are set
-  if control._delegates.determine_layout_extents == nil do return .MissingGUIProcDelegate
-  if control._delegates.render_control == nil do return .MissingGUIProcDelegate
-  if control._delegates.destroy_control == nil do return .MissingGUIProcDelegate
-  if control._delegates.update_control_layout == nil do return .MissingGUIProcDelegate
-
+  if control._delegates.determine_layout_extents == nil {
+    fmt.println("Missing GUI delegate: determine_layout_extents for control:", control.id)
+    return .MissingGUIProcDelegate
+  }
+  if control._delegates.render_control == nil {
+    fmt.println("Missing GUI delegate: render_control for control:", control.id)
+    return .MissingGUIProcDelegate
+  }
+  if control._delegates.destroy_control == nil {
+    fmt.println("Missing GUI delegate: destroy_control for control:", control.id)
+    return .MissingGUIProcDelegate
+  }
+  if control._delegates.update_control_layout == nil {
+    fmt.println("Missing GUI delegate: update_control_layout for control:", control.id)
+    return .MissingGUIProcDelegate
+  }
+  if control._delegates.handle_gui_event == nil {
+    fmt.println("Missing GUI delegate: handle_gui_event for control:", control.id)
+    return .MissingGUIProcDelegate
+  }
+  
   // TODO parent check
   // _name_control(label, name_id) TODO -- proper name control
   control.parent = auto_cast parent
