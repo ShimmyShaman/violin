@@ -1,10 +1,19 @@
 package violin_gui
 
+import "core:c/libc"
 import "core:fmt"
 import "core:mem"
+import "core:strings"
+
+import sdl2 "vendor:sdl2"
 
 import vi "violin:vsr"
 
+ProcDetermineControlExtents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints) -> vi.Error
+ProcHandleGUIEvent :: proc(control: ^Control, event: ^sdl2.Event) -> (handled: bool, err: vi.Error)
+ProcUpdateControlLayout :: proc(control: ^Control, available_area: vi.Rectf, update_x: bool = true, update_y: bool = true,
+  update_width: bool = true, update_height: bool = true, update_children: bool = true)
+ProcRenderControl :: proc (using grc: ^GUIRenderContext, control: ^_ControlInfo) -> (err: vi.Error)
 ProcDestroyControl :: proc(ctx: ^vi.Context, control: ^Control)
 
 ControlType :: enum {
@@ -48,7 +57,7 @@ _ControlLayout :: struct {
   preferred_width, preferred_height: f32,
   min_width, min_height: f32,
   max_width, max_height: f32,
-  padding: Extent,
+  margin: Extent,
 
   determined_width_extent, determined_height_extent: f32,
 
@@ -190,11 +199,38 @@ destroy_gui :: proc(ctx: ^vi.Context, gui_root: ^^GUIRoot) {
     return .MissingGUIProcDelegate
   }
   
-  // TODO parent check
-  // _name_control(label, name_id) TODO -- proper name control
+  // Set the parent
   control.parent = auto_cast parent
+  iterative_count := 1
+  unique_name_loop: for {
+    // Create the name
+    iterative_name: string
+    if iterative_count == 1 {
+      iterative_name = control.id
+    } else {
+      iterative_name = fmt.aprint(args={control.id, iterative_count}, sep = "")
+    }
+    
+    // Iterate through children in other parent
+    for child in control.parent.children {
+      fmt.println("child.id:", child.id, "iterative_name:", iterative_name)
+      if child.id == iterative_name {
+        fmt.println("MATCH")
+        if iterative_count > 1 do delete_string(iterative_name)
+        iterative_count += 1
+        continue unique_name_loop
+      }
+    }
 
+    // Set
+    control.id = iterative_name
+    break
+  }
+
+  // Add the control to the parent children
   append(&(cast(^_ContainerControlInfo)parent).children, auto_cast control)
+
+  fmt.println("Added control:", control.id, "to parent:", (cast(^_ContainerControlInfo)parent).id)
 
   return
 }
@@ -233,7 +269,7 @@ destroy_gui :: proc(ctx: ^vi.Context, gui_root: ^^GUIRoot) {
 //   // Default Settings
 //   bn._layout.min_width = 8;
 //   bn._layout.min_height = 8;
-//   bn._layout.padding = { 1, 1, 1, 1 }
+//   bn._layout.margin = { 1, 1, 1, 1 }
 
 //   // Set the label info
 //   bn.text = "Button"

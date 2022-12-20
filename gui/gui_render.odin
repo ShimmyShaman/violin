@@ -7,8 +7,6 @@ import "vendor:sdl2"
 
 import vi "violin:vsr"
 
-ProcRenderControl :: proc (using grc: ^GUIRenderContext, control: ^_ControlInfo) -> (err: vi.Error)
-
 GUIRenderContext :: struct {
   gui_root: ^GUIRoot,
   rctx: ^vi.RenderContext,

@@ -28,7 +28,7 @@ create_label :: proc(parent: ^Control, name_id: string = "Label") -> (label: ^La
   label._delegates.render_control = _render_label
   label._delegates.update_control_layout = update_control_layout
   label._delegates.destroy_control = _destroy_label_control
-  label._delegates.handle_gui_event = _handle_label_input_event
+  label._delegates.handle_gui_event = _handle_label_gui_event
 
   label.properties = { .TextRestrained }
   // label.bounds = vi.Rectf{0.0, 0.0, 80.0, 20.0}
@@ -40,7 +40,7 @@ create_label :: proc(parent: ^Control, name_id: string = "Label") -> (label: ^La
   // Default Settings
   label._layout.min_width = 8;
   label._layout.min_height = 8;
-  label._layout.padding = { 1, 1, 1, 1 }
+  label._layout.margin = { 1, 1, 1, 1 }
 
   // Set the label info
   label.text = "Label"
@@ -76,10 +76,9 @@ create_label :: proc(parent: ^Control, name_id: string = "Label") -> (label: ^La
   return
 }
 
-@(private) _handle_label_input_event :: proc(control: ^Control, event: ^sdl2.Event) -> (handled: bool, err: vi.Error) {
-  label: ^Label = auto_cast control
-
-  fmt.println("GUI Input Event: ", event.type, " for label: ", label.text)
+@(private) _handle_label_gui_event :: proc(control: ^Control, event: ^sdl2.Event) -> (handled: bool, err: vi.Error) {
+  // Do nothing
+  // -- Click Through --
   return
 }
 

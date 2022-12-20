@@ -35,6 +35,7 @@ create_stack_container :: proc(parent: ^Control, name_id: string = "StackContain
   stack._delegates.determine_layout_extents = _determine_stack_container_extents
   stack._delegates.render_control = _render_stack_container
   stack._delegates.update_control_layout = update_control_layout
+  stack._delegates.handle_gui_event = _handle_gui_event_default_rect
   stack._delegates.destroy_control = _destroy_stack_container
 
   stack.properties = { .Container }
@@ -42,7 +43,7 @@ create_stack_container :: proc(parent: ^Control, name_id: string = "StackContain
   // Default Settings
   stack._layout.min_width = 8;
   stack._layout.min_height = 8;
-  stack._layout.padding = { 1, 1, 1, 1 }
+  stack._layout.margin = { 1, 1, 1, 1 }
 
   // Set the stack container info
   stack.orientation = .None

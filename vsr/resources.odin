@@ -14,7 +14,7 @@ import stbtt "vendor:stb/truetype"
 import vma "violin:odin-vma"
 
 @(private) RESOURCES_DEBUG_VERBOSE_FLAG :: false
-@(private) RESOURCES_DEBUG_AUTO_CLEANUP_FLAG :: false
+@(private) RESOURCES_DEBUG_AUTO_CLEANUP_FLAG :: true
 @(private) INITIAL_RESOURCE_HANDLE_INDEX :: 1000
 
 // https://gpuopen-librariesandsdks.github.io/VulkanMemoryAllocator/html/usage_patterns.html

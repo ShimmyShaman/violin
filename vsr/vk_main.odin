@@ -31,6 +31,7 @@ Error :: enum {
   VulkanPresentationResized,
   ResourceKindMismatch,
   // GUI
+  UnattachedToGUIRoot,
   MissingGUIProcDelegate,
   MAX_EXTENT_VALUE = 1000,
 }

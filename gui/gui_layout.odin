@@ -14,17 +14,6 @@ LayoutExtentRestraint :: enum(u8) {
   Vertical,
 }
 
-ProcDetermineControlExtents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints) -> vi.Error
-ProcHandleGUIEvent :: proc(control: ^Control, event: ^sdl2.Event) -> (handled: bool, err: vi.Error)
-ProcUpdateControlLayout :: proc(control: ^Control, available_area: vi.Rectf, update_x: bool = true, update_y: bool = true,
-  update_width: bool = true, update_height: bool = true, update_children: bool = true)
-
-handle_gui_event :: proc(control: ^Control, event: ^sdl2.Event) -> (handled: bool, err: vi.Error) {
-  fmt.println("GUI Event:", event.type, " - ", control.ctype)
-  handled = true
-  return
-}
-
 update_gui :: proc(gui_root: ^GUIRoot) -> (err: vi.Error) {
   if gui_root.children == nil do return
 
@@ -213,7 +202,7 @@ update_control_layout :: proc(control: ^Control, available_area: vi.Rectf, updat
     }
     else {
       // Padding adjusted from available
-      next.width = available_area.width - layout.padding.right - layout.padding.left
+      next.width = available_area.width - layout.margin.right - layout.margin.left
     }
   }
 
@@ -236,7 +225,7 @@ update_control_layout :: proc(control: ^Control, available_area: vi.Rectf, updat
     }
     else {
       // Padding adjusted from available
-      next.height = available_area.height - layout.padding.top - layout.padding.bottom
+      next.height = available_area.height - layout.margin.top - layout.margin.bottom
     }
   }
   
@@ -254,12 +243,12 @@ update_control_layout :: proc(control: ^Control, available_area: vi.Rectf, updat
   if update_x {
     switch layout.horizontal_alignment {
       case .Left:
-        next.x = available_area.x + layout.padding.left
+        next.x = available_area.x + layout.margin.left
       case .Right:
-        next.x = available_area.x + available_area.width - layout.padding.right - next.width
+        next.x = available_area.x + available_area.width - layout.margin.right - next.width
       case .Centred:
-        next.x = available_area.x + layout.padding.left +
-          (available_area.width - (layout.padding.left + next.width + layout.padding.right)) / 2.0
+        next.x = available_area.x + layout.margin.left +
+          (available_area.width - (layout.margin.left + next.width + layout.margin.right)) / 2.0
     }
 
     if next.x != control.bounds.x {
@@ -272,12 +261,12 @@ update_control_layout :: proc(control: ^Control, available_area: vi.Rectf, updat
   if update_y {
     switch layout.vertical_alignment {
       case .Top:
-        next.y = available_area.y + layout.padding.top
+        next.y = available_area.y + layout.margin.top
       case .Bottom:
-        next.y = available_area.y + available_area.height - layout.padding.bottom - next.height
+        next.y = available_area.y + available_area.height - layout.margin.bottom - next.height
       case .Centred:
-        next.y = available_area.y + layout.padding.top +
-          (available_area.height - (layout.padding.bottom + next.height + layout.padding.top)) / 2.0
+        next.y = available_area.y + layout.margin.top +
+          (available_area.height - (layout.margin.bottom + next.height + layout.margin.top)) / 2.0
     }
 
     if next.y != control.bounds.y {

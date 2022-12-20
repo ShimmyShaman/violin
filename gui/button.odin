@@ -40,7 +40,7 @@ create_button :: proc(parent: ^Control, name_id: string = "Button") -> (button: 
   // Default Settings
   button._layout.min_width = 8;
   button._layout.min_height = 8;
-  button._layout.padding = { 1, 1, 1, 1 }
+  button._layout.margin = { 1, 1, 1, 1 }
 
   // Set the label info
   button.text = "Button"
