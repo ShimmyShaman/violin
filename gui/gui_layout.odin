@@ -17,14 +17,33 @@ LayoutExtentRestraint :: enum(u8) {
 update_gui :: proc(gui_root: ^GUIRoot) -> (err: vi.Error) {
   if gui_root.children == nil do return
 
-  gui_root._delegates.determine_layout_extents(gui_root, auto_cast gui_root, {}) or_return
+  // Update each child
+  for i := len(gui_root.children) - 1; i >= 0; i -= 1 {
+    child := gui_root.children[i]
+    if child._delegates.frame_update != nil {
+      child._delegates.frame_update(child)
+    }
+  }
 
-  // Update the layout of each child
-  w, h: c.int
-  sdl2.GetWindowSize(gui_root.vctx.window, &w, &h) // TODO -- this should be updated by swapchain resize callback instead?
-  gui_root._delegates.update_control_layout(auto_cast gui_root, vi.Rectf{0, 0, auto_cast w, auto_cast h})
+  if gui_root.requires_layout_update {
+    gui_root.requires_layout_update = false
+    
+    gui_root._delegates.determine_layout_extents(gui_root, auto_cast gui_root, {}) or_return
 
+    // Update the layout of each child
+    w, h: c.int
+    sdl2.GetWindowSize(gui_root.vctx.window, &w, &h) // TODO -- this should be updated by swapchain resize callback instead?
+    gui_root._delegates.update_control_layout(auto_cast gui_root, vi.Rectf{0, 0, auto_cast w, auto_cast h})
+
+  }
   return
+}
+
+set_control_requires_layout_update :: proc(control: ^Control) {
+  control._layout.requires_layout_update = true
+  if control.parent != nil {
+    set_control_requires_layout_update(control.parent)
+  }
 }
 
 determine_layout_extents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints) -> vi.Error {

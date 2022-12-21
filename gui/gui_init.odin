@@ -8,11 +8,11 @@ import "core:strings"
 import sdl2 "vendor:sdl2"
 
 import vi "violin:vsr"
-
-ProcDetermineControlExtents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints) -> vi.Error
 ProcHandleGUIEvent :: proc(control: ^Control, event: ^sdl2.Event) -> (handled: bool, err: vi.Error)
+ProcFrameUpdate :: proc(control: ^Control, dt: f32) -> vi.Error
 ProcUpdateControlLayout :: proc(control: ^Control, available_area: vi.Rectf, update_x: bool = true, update_y: bool = true,
   update_width: bool = true, update_height: bool = true, update_children: bool = true)
+ProcDetermineControlExtents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints) -> vi.Error
 ProcRenderControl :: proc (using grc: ^GUIRenderContext, control: ^_ControlInfo) -> (err: vi.Error)
 ProcDestroyControl :: proc(ctx: ^vi.Context, control: ^Control)
 
@@ -65,11 +65,12 @@ _ControlLayout :: struct {
 }
 
 _ControlDelegates :: struct {
+  update_control_layout: ProcUpdateControlLayout,
   determine_layout_extents: ProcDetermineControlExtents,
+  handle_gui_event: ProcHandleGUIEvent,
+  frame_update: ProcFrameUpdate,
   render_control: ProcRenderControl,
   destroy_control: ProcDestroyControl,
-  update_control_layout: ProcUpdateControlLayout,
-  handle_gui_event: ProcHandleGUIEvent,
 }
 
 _ControlInfo :: struct {
@@ -78,7 +79,7 @@ _ControlInfo :: struct {
   _delegates: _ControlDelegates,
   id: string,
   parent: ^_ContainerControlInfo,
-  visible: bool,
+  disabled, visible: bool,
   properties: ControlProperties,
 
   bounds: vi.Rectf,
@@ -178,8 +179,16 @@ destroy_gui :: proc(ctx: ^vi.Context, gui_root: ^^GUIRoot) {
   gui_root: ^GUIRoot = _get_gui_root(parent) or_return
 
   // Validate that all delegates are set
+  if control._delegates.update_control_layout == nil {
+    fmt.println("Missing GUI delegate: update_control_layout for control:", control.id)
+    return .MissingGUIProcDelegate
+  }
   if control._delegates.determine_layout_extents == nil {
     fmt.println("Missing GUI delegate: determine_layout_extents for control:", control.id)
+    return .MissingGUIProcDelegate
+  }
+  if control._delegates.handle_gui_event == nil {
+    fmt.println("Missing GUI delegate: handle_gui_event for control:", control.id)
     return .MissingGUIProcDelegate
   }
   if control._delegates.render_control == nil {
@@ -188,14 +197,6 @@ destroy_gui :: proc(ctx: ^vi.Context, gui_root: ^^GUIRoot) {
   }
   if control._delegates.destroy_control == nil {
     fmt.println("Missing GUI delegate: destroy_control for control:", control.id)
-    return .MissingGUIProcDelegate
-  }
-  if control._delegates.update_control_layout == nil {
-    fmt.println("Missing GUI delegate: update_control_layout for control:", control.id)
-    return .MissingGUIProcDelegate
-  }
-  if control._delegates.handle_gui_event == nil {
-    fmt.println("Missing GUI delegate: handle_gui_event for control:", control.id)
     return .MissingGUIProcDelegate
   }
   
@@ -213,9 +214,7 @@ destroy_gui :: proc(ctx: ^vi.Context, gui_root: ^^GUIRoot) {
     
     // Iterate through children in other parent
     for child in control.parent.children {
-      fmt.println("child.id:", child.id, "iterative_name:", iterative_name)
       if child.id == iterative_name {
-        fmt.println("MATCH")
         if iterative_count > 1 do delete_string(iterative_name)
         iterative_count += 1
         continue unique_name_loop
@@ -230,59 +229,7 @@ destroy_gui :: proc(ctx: ^vi.Context, gui_root: ^^GUIRoot) {
   // Add the control to the parent children
   append(&(cast(^_ContainerControlInfo)parent).children, auto_cast control)
 
-  fmt.println("Added control:", control.id, "to parent:", (cast(^_ContainerControlInfo)parent).id)
+  // fmt.println("Added control:", control.id, "to parent:", (cast(^_ContainerControlInfo)parent).id)
 
   return
 }
-
-// @(private)_name_control :: proc(control: rawptr, name: string) {
-//   cnfo: ^_ControlInfo = auto_cast control
-
-
-
-//   cnfo.id = name
-// }
-
-// create_button :: proc(parent: rawptr, name_id: string = "label") -> (label: ^Label, err: vi.Error) {
-//   // Obtain the gui root
-//   gui_root: ^GUIRoot = _get_gui_root(parent)
-
-//   // Create the label
-//   bn = new(Button)
-
-//   // Set the control info
-//   bn.ctype = .Label
-//   bn.id = name_id
-//   // TODO parent check
-//   // _name_control(bn, name_id) TODO -- proper name control
-//   bn.parent = auto_cast parent
-//   append(&(cast(^_ContainerControlInfo)parent).children, auto_cast label)
-//   bn.visible = true
-
-//   bn.properties = { .TextRestrained }
-//   // label.bounds = vi.Rectf{0.0, 0.0, 80.0, 20.0}
-//   // label.bounds.left = 0.0
-//   // label.bounds.top = 0.0
-//   // label.bounds.right = 80.0
-//   // label.bounds.bottom = 20.0
-
-//   // Default Settings
-//   bn._layout.min_width = 8;
-//   bn._layout.min_height = 8;
-//   bn._layout.margin = { 1, 1, 1, 1 }
-
-//   // Set the label info
-//   bn.text = "Button"
-//   bn.font = gui_root.default_font
-//   bn.font_color = vi.COLOR_White
-//   bn.background_color = vi.COLOR_DarkSlateGray
-//   bn.clip_text_to_bounds = false
-
-//   // label._layout.requires_layout_update = true
-
-//   return
-// }
-
-// create_textbox :: proc(parent: rawptr, name_id: string) -> (textbox: ^Textbox, err: vi.Error) {
-//   return
-// }

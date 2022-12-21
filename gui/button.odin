@@ -1,19 +1,36 @@
 package violin_gui
 
 import "core:fmt"
+import la "core:math/linalg"
 
 import sdl2 "vendor:sdl2"
 
 import vi "violin:vsr"
 
+ButtonVisualState :: enum {
+  Normal,
+  Hover,
+  Pressed,
+  Disabled,
+}
+
+ButtonState :: struct {
+  visual_state: ButtonVisualState,
+  background_draw_color: vi.Color,
+}
+
 Button :: struct {
   using _ctrlnfo: _ControlInfo,
+
+  _state: ButtonState,
   
   text: string,
   font: vi.FontResourceHandle,
   font_color: vi.Color,
-  background_color: vi.Color,
-  // clip_text_to_bounds: bool,
+
+  background_color, background_highlight_color, background_pressed_color, background_disabled_color: vi.Color,
+
+  tag: rawptr,
 }
 
 create_button :: proc(parent: ^Control, name_id: string = "Button") -> (button: ^Button, err: vi.Error) {
@@ -26,8 +43,10 @@ create_button :: proc(parent: ^Control, name_id: string = "Button") -> (button: 
   button.visible = true
 
   button._delegates.determine_layout_extents = _determine_button_extents
+  button._delegates.frame_update = _frame_update_control
   button._delegates.render_control = _render_button
   button._delegates.update_control_layout = update_control_layout
+  button._delegates.handle_gui_event = _handle_button_gui_event
   button._delegates.destroy_control = _destroy_button_control
 
   button.properties = { .TextRestrained }
@@ -49,7 +68,7 @@ create_button :: proc(parent: ^Control, name_id: string = "Button") -> (button: 
   button.background_color = vi.COLOR_DarkSlateGray
   // button.clip_text_to_bounds = false
 
-  // label._layout.requires_layout_update = true
+  set_control_requires_layout_update(auto_cast button)
 
   _add_control(parent, auto_cast button) or_return
 
@@ -86,35 +105,57 @@ create_button :: proc(parent: ^Control, name_id: string = "Button") -> (button: 
   return determine_text_restrained_control_extents(gui_root, control, restraints, text_width, text_height)
 }
 
-// void _mcu_button_handle_gui_event(mc_node *button_node, mci_input_event *input_event)
-// {
-//   // printf("_mcu_button_handle_gui_event\n");
-//   mcu_button *button = (mcu_button *)button_node->data;
-
-//   if (!button->enabled)
-//     return;
-
-//   if (input_event->type == INPUT_EVENT_MOUSE_PRESS) {
-//     // printf("_mcu_button_handle_gui_event-1\n");
-//     if (button->left_click && (mc_mouse_button_code)input_event->button_code == MOUSE_BUTTON_LEFT) {
-//       // printf("_mcu_button_handle_gui_event-2\n");
-//       // Fire left-click
-//       // TODO fptr casting
-//       // TODO int this delegate for error handling
-//       void (*left_click)(mci_input_event *, mcu_button *) =
-//           (void (*)(mci_input_event *, mcu_button *))button->left_click;
-//       // TODO -- MCcall(below) - have to make handle input event int
-//       left_click(input_event, button);
-//     }
-//   }
-
-//   input_event->handled = true;
-// }
-
-@(private) _handle_button_input_event :: proc(control: ^Control, event: ^sdl2.Event) -> (handled: bool, err: vi.Error) {
+@(private) _handle_button_gui_event :: proc(control: ^Control, event: ^sdl2.Event) -> (handled: bool, err: vi.Error) {
   button: ^Button = auto_cast control
 
-  fmt.println("GUI Input Event: ", event.type, " for button: ", button.text)
+  mouse_leaves, mouse_enters := false, false
+
+  // fmt.println("GUI Input Event: ", event.type, " for button: ", button.text)
+  #partial switch event.type {
+    case .MOUSEMOTION:
+      x, y: f32 = auto_cast event.motion.x, auto_cast event.motion.y
+      mouse_is_over := x >= button.bounds.x && x < button.bounds.x + button.bounds.width && y >= button.bounds.y &&
+        y < button.bounds.y + button.bounds.height
+      switch button._state.visual_state {
+        case .Disabled:
+          handled = false
+        case .Normal:
+          if mouse_is_over {
+            button._state.visual_state = .Hover
+            mouse_enters = true
+          }
+          handled = mouse_is_over
+        case .Hover, .Pressed:
+          if !mouse_is_over {
+            button._state.visual_state = .Normal
+            mouse_leaves = true
+          }
+          handled = mouse_is_over
+      }
+    case:
+      fmt.println("Warning Unhandled GUI Input Event: ", event.type, " for button: ", button.id)
+  }
+
+  // TODO MouseEnters, MouseLeaves
+
+  handled = true
+  return
+}
+
+@(private) _frame_update_control :: proc(control: ^Control, dt: f32) -> (err: vi.Error) {
+  button: ^Button = auto_cast control
+
+  if button.disabled do button._state.visual_state = .Disabled
+  switch button._state.visual_state {
+    case .Normal:
+      button._state.background_draw_color = button.background_color
+    case .Hover:
+      button._state.background_draw_color = button.background_highlight_color
+    case .Pressed:
+      button.background_color = button.background_pressed_color
+    case .Disabled:
+      button._state.background_draw_color = button.background_disabled_color
+  }
   return
 }
 

@@ -32,10 +32,11 @@ create_stack_container :: proc(parent: ^Control, name_id: string = "StackContain
   stack.id = name_id
   stack.visible = true
 
-  stack._delegates.determine_layout_extents = _determine_stack_container_extents
-  stack._delegates.render_control = _render_stack_container
-  stack._delegates.update_control_layout = update_control_layout
   stack._delegates.handle_gui_event = _handle_gui_event_default_rect
+  stack._delegates.frame_update = _frame_update_stack_container
+  stack._delegates.determine_layout_extents = _determine_stack_container_extents
+  stack._delegates.update_control_layout = update_control_layout
+  stack._delegates.render_control = _render_stack_container
   stack._delegates.destroy_control = _destroy_stack_container
 
   stack.properties = { .Container }
@@ -49,29 +50,21 @@ create_stack_container :: proc(parent: ^Control, name_id: string = "StackContain
   stack.orientation = .None
   stack.background_color = vi.COLOR_DarkSlateGray
 
-  // label._layout.requires_layout_update = true
   _add_control(parent, auto_cast stack) or_return
 
+  set_control_requires_layout_update(auto_cast stack)
+  
   return
 }
 
-@(private) _render_stack_container :: proc(using grc: ^GUIRenderContext, control: ^_ControlInfo) -> (err: vi.Error) {
-  stack: ^StackContainer = auto_cast control
-
-  if stack.background_color.a > 0.0 && stack.bounds.width > 0.0 && stack.bounds.height > 0.0 {
-    vi.stamp_colored_rect(grc.rctx, grc.stamprr, &stack.bounds, &stack.background_color) or_return
-  }
-
-  // Children
-  if stack.children != nil {
-    for child in stack.children {
-      if child._delegates.render_control != nil {
-        child._delegates.render_control(grc, child)
-      }
+@(private) _frame_update_stack_container :: proc(control: ^Control, dt: f32) {
+  // Update the children
+  for i := len(control.children) - 1; i >= 0; i -= 1 {
+    child := control.children[i]
+    if child._delegates.frame_update != nil {
+      child._delegates.frame_update(child, dt)
     }
   }
-
-  return
 }
 
 @(private) _determine_stack_container_extents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints) \
@@ -183,6 +176,25 @@ create_stack_container :: proc(parent: ^Control, name_id: string = "StackContain
 
       if layout.determined_height_extent < 0 {
         layout.determined_height_extent = 0
+      }
+    }
+  }
+
+  return
+}
+
+@(private) _render_stack_container :: proc(using grc: ^GUIRenderContext, control: ^_ControlInfo) -> (err: vi.Error) {
+  stack: ^StackContainer = auto_cast control
+
+  if stack.background_color.a > 0.0 && stack.bounds.width > 0.0 && stack.bounds.height > 0.0 {
+    vi.stamp_colored_rect(grc.rctx, grc.stamprr, &stack.bounds, &stack.background_color) or_return
+  }
+
+  // Children
+  if stack.children != nil {
+    for child in stack.children {
+      if child._delegates.render_control != nil {
+        child._delegates.render_control(grc, child)
       }
     }
   }

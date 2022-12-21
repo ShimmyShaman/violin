@@ -49,7 +49,7 @@ create_label :: proc(parent: ^Control, name_id: string = "Label") -> (label: ^La
   label.background_color = vi.COLOR_DarkSlateGray
   label.clip_text_to_bounds = false
 
-  // label._layout.requires_layout_update = true
+  set_control_requires_layout_update(auto_cast label)
 
   _add_control(parent, auto_cast label) or_return
 

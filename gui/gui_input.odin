@@ -9,10 +9,62 @@ import "vendor:sdl2"
 
 import vi "violin:vsr"
 
+// GUIEventType :: enum {
+//   None,
+//   MouseMove,
+//   MouseDown,
+//   MouseUp,
+//   MouseWheel,
+//   KeyDown,
+//   KeyUp,
+//   TextInput,
+//   TextEditing,
+//   KeyMapChanged,
+// }
+
+// GUIEvent :: struct {
+//   type: GUIEventType,
+// }
+
 handle_gui_event :: proc(control: ^GUIRoot, event: ^sdl2.Event) -> (handled: bool, err: vi.Error) {
   
   // Propagate to children
   handled, err = _propagate_handle_gui_event_to_children(auto_cast control, event)
+
+  // switch event.type {
+  //   case .MOUSEMOTION:
+  //     x: f32 = auto_cast event.motion.x
+  //     y: f32 = auto_cast event.motion.y
+  //     if x >= control.bounds.x && x < control.bounds.x + control.bounds.width && y >= control.bounds.y && y < control.bounds.y +
+  //         control.bounds.height {
+  //       // Do nothing
+  //       handled = true
+  //     }
+  //   case .MOUSEBUTTONDOWN:
+  //     x: f32 = auto_cast event.button.x
+  //     y: f32 = auto_cast event.button.y
+  //     if x >= control.bounds.x && x < control.bounds.x + control.bounds.width && y >= control.bounds.y && y < control.bounds.y +
+  //         control.bounds.height {
+  //       // Handled
+  //       handled = true
+
+  //       // Set Focus To Control
+  //       err = focus_control(auto_cast control)
+  //     }
+  //   case .KEYMAPCHANGED,
+  //        .KEYDOWN,
+  //        .KEYUP,
+  //        .TEXTINPUT,
+  //        .TEXTEDITING,
+  //        .MOUSEBUTTONUP,
+  //        .MOUSEWHEEL:
+  //     // Handled
+  //     handled = true
+  //   case:
+  //     fmt.println("Unhandled GUI Event:", event.type, " - ", control.ctype)
+  //     err = .NotYetImplemented
+  //     return
+  // }
 
   return
 }
@@ -21,7 +73,8 @@ _propagate_handle_gui_event_to_children :: proc(control: ^Control, event: ^sdl2.
   container: ^_ContainerControlInfo = auto_cast control
 
   // Children
-  for child in container.children {
+  for i := len(container.children) - 1; i >= 0; i -= 1 {
+    child := container.children[i]
     handled, err = child._delegates.handle_gui_event(child, event)
     
     if err != .Success || handled do return
@@ -96,7 +149,7 @@ get_control_path :: proc(control: ^Control) -> (path: string) {
 }
 
 focus_control :: proc(control: ^Control) -> (err: vi.Error) {
-  fmt.println("focus_control:", get_control_path(control))
+  // fmt.println("focus_control:", get_control_path(control))
 
   if control.parent == nil && control.ctype != .GUIRoot {
     // TODO
@@ -169,105 +222,3 @@ focus_control :: proc(control: ^Control) -> (err: vi.Error) {
 
   return
 }
-// int mca_focus_node(mc_node *node_to_focus)
-// {
-//   // Set Focus Status on all parent nodes
-//   mc_node *hnode = node_to_focus, *hn_parent;
-//   do {
-//     hn_parent = hnode->parent;
-
-//     // Set Child Focus
-//     if (!hn_parent->layout) {
-//       MCerror(9664, "Cannot set focus to node with an ancestor without an initialized layout");
-//     }
-//     hn_parent->layout->focused_child = hnode;
-
-//     // Update layout
-//     hn_parent->layout->__requires_rerender = true;
-    
-//     // Find the child in the parents children and set it to the highest index amongst its z-index equals or lessers
-//     mc_node_list *parents_children = hn_parent->children;
-//     bool found = false;
-//     for (int i = 0; i < parents_children->count; ++i) {
-//       if (parents_children->items[i] == hnode) {
-//         found = true;
-
-//         if (i + 1 == parents_children->count)
-//           break;
-
-//         int j = i + 1;
-//         for (; j < parents_children->count; ++j) {
-//           if (parents_children->items[j]->layout &&
-//               hnode->layout->z_layer_index < parents_children->items[j]->layout->z_layer_index) {
-//             break;
-//           }
-//         }
-//         --j;
-
-//         if (j > i) {
-//           // Change Child Order
-//           for (int k = i; k < j; ++k) {
-//             parents_children->items[k] = parents_children->items[k + 1];
-//           }
-
-//           parents_children->items[j] = hnode;
-//         }
-//       }
-//     }
-
-//     if(!found) {
-//       printf("mca_focus_node():\n - node_to_focus:");
-//       puts("! Couldn't find node in parents children !");
-//       printf(" - node_to_focus:");
-//       mc_print_node_path(node_to_focus);
-//       puts("");
-//       printf(" - parent:");
-//       mc_print_node_path(hn_parent);
-//       puts("");
-//       printf(" - node:");
-//       mc_print_node_path(hnode);
-//       puts("");
-
-//       MCerror(5857, "Couldn't find node in parents children");
-//     }
-
-//     // Set the midge-root focus status information
-//     if(hn_parent->type == NODE_TYPE_GLOBAL_ROOT) {
-//       switch (hnode->type)
-//       {
-//       case NODE_TYPE_CONSOLE_APP:
-//       case NODE_TYPE_VISUAL_PROJECT:
-//         app_info->focus_status.project = hnode;
-//         app_info->focus_status.project_target = node_to_focus;
-//         break;
-//       case NODE_TYPE_MODULE_ROOT:
-//         app_info->focus_status.module = hnode;
-//         app_info->focus_status.module_target = node_to_focus;
-//         break;
-//       default:
-//       // puts("******************");
-//       // printf(" - parent:");
-//       // mc_print_node_path(hn_parent);
-//       // puts("");
-//       // printf(" - node:");
-//       // mc_print_node_path(hnode);
-//       // puts("");
-//         MCerror(5857, "Nodes attached to global root should only be a project node or module node: '%i'", hnode->type);
-//       }
-//       break;
-//     }
-
-//     // Continue
-//     hnode = hn_parent;
-
-//   } while(1);
-
-//   // printf(" - module_focus:");
-//   // mc_print_node_path(app_info->focus_status.module_target);
-//   // puts("");
-//   // printf(" - project_focus:");
-//   // mc_print_node_path(app_info->focus_status.project_target);
-//   // puts("");
-
-//   return 0;
-// }
