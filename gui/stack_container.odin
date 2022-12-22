@@ -35,7 +35,7 @@ create_stack_container :: proc(parent: ^Control, name_id: string = "StackContain
   stack._delegates.handle_gui_event = _handle_gui_event_default_rect
   stack._delegates.frame_update = _frame_update_stack_container
   stack._delegates.determine_layout_extents = _determine_stack_container_extents
-  stack._delegates.update_control_layout = update_control_layout
+  stack._delegates.update_control_layout = _update_stack_container_layout
   stack._delegates.render_control = _render_stack_container
   stack._delegates.destroy_control = _destroy_stack_container
 
@@ -185,6 +185,69 @@ create_stack_container :: proc(parent: ^Control, name_id: string = "StackContain
   }
 
   return
+}
+
+@(private) _update_stack_container_layout :: proc(control: ^Control, available_area: vi.Rectf, update_x: bool = true,
+  update_y: bool = true, update_width: bool = true, update_height: bool = true, update_children: bool = true) {
+  stack: ^StackContainer = auto_cast control
+
+  // Update the control
+  update_control_layout(control, available_area, update_x, update_y, update_width, update_height, false)
+
+  // Children
+  if update_children && stack.children != nil {
+    // Align child area to center = stack.bounds
+    // if stack.orientation != .None {
+    //   if available_child_area.width > stack._children_extents.x {
+    //     available_child_area.x += (available_child_area.width - stack._children_extents.x) / 2
+    //     available_child_area.width = stack._children_extents.x
+    //   }
+    //   if available_child_area.height > stack._children_extents.y {
+    //     available_child_area.y += (available_child_area.height - stack._children_extents.y) / 2
+    //     available_child_area.height = stack._children_extents.y
+    //   }
+    // }
+
+    // Update child layouts
+    offset_x, offset_y: f32 = 0, 0
+    for child in stack.children {
+      // Set the child's available area
+      available_child_area: vi.Rectf
+      switch stack.orientation {
+        case .None:
+        case .Horizontal:
+          available_child_area = {
+            x = stack.bounds.x + offset_x,
+            y = stack.bounds.y,
+            width = child._layout.determined_width_extent,
+            height = stack.bounds.height,
+          }
+        case .Vertical:
+          available_child_area = {
+            x = stack.bounds.x,
+            y = stack.bounds.y + offset_y,
+            width = stack.bounds.width,
+            height = child._layout.determined_height_extent,
+          }
+        case:
+          fmt.println("Unsupported stack orientation type:", stack.orientation, "\n for control:", get_control_path(control))
+      }
+
+      // Delegate
+      child._delegates.update_control_layout(child, available_child_area, update_x, update_y, update_width, update_height, true)
+
+      // Update offset
+      switch stack.orientation {
+        case .None:
+        case .Horizontal:
+          offset_x += child._layout.determined_width_extent
+        case .Vertical:
+          offset_y += child._layout.determined_height_extent
+        case:
+          fmt.println("Unsupported stack orientation type:", stack.orientation, "\n for control:", get_control_path(control))
+      }
+    }
+  }
 }
 
 @(private) _render_stack_container :: proc(using grc: ^GUIRenderContext, control: ^_ControlInfo) -> (err: vi.Error) {

@@ -224,16 +224,16 @@ update_control_layout :: proc(control: ^Control, available_area: vi.Rectf, updat
       // Padding adjusted from available
       next.width = available_area.width - layout.margin.right - layout.margin.left
     }
-  }
 
-  // Apply the determined extent
-  if next.width > layout.determined_width_extent {
-    next.width = layout.determined_width_extent
-  }
+    // Apply the determined extent
+    if next.width > layout.determined_width_extent {
+      next.width = layout.determined_width_extent
+    }
 
-  if next.width != control.bounds.width {
-    control.bounds.width = next.width
-    // TODO -- change/rerender flag?
+    if next.width != control.bounds.width {
+      control.bounds.width = next.width
+      // TODO -- change/rerender flag?
+    }
   }
 
   // Height
@@ -247,16 +247,16 @@ update_control_layout :: proc(control: ^Control, available_area: vi.Rectf, updat
       // Padding adjusted from available
       next.height = available_area.height - layout.margin.top - layout.margin.bottom
     }
-  }
   
-  // Apply the determined extent
-  if next.height > layout.determined_height_extent {
-    next.height = layout.determined_height_extent
-  }
-  
-  if next.height != control.bounds.height {
-    control.bounds.height = next.height
-    // TODO -- change/rerender flag?
+    // Apply the determined extent
+    if next.height > layout.determined_height_extent {
+      next.height = layout.determined_height_extent
+    }
+    
+    if next.height != control.bounds.height {
+      control.bounds.height = next.height
+      // TODO -- change/rerender flag?
+    }
   }
 
   // Left
@@ -297,12 +297,12 @@ update_control_layout :: proc(control: ^Control, available_area: vi.Rectf, updat
   // fmt.println("Determined layout for control: ", control.ctype, " - ", control.bounds)
 
   // Children
-  if .Container in control.properties {
+  if update_children && .Container in control.properties {
     // Determine extents for each child
     container: ^_ContainerControlInfo = auto_cast control
     if container.children != nil {
       for child in container.children {
-        child._delegates.update_control_layout(child, control.bounds)
+        child._delegates.update_control_layout(child, control.bounds, update_x, update_y, update_width, update_height)
       }
     }
   }

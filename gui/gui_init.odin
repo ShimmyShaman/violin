@@ -8,6 +8,7 @@ import "core:strings"
 import sdl2 "vendor:sdl2"
 
 import vi "violin:vsr"
+
 ProcHandleGUIEvent :: proc(control: ^Control, event: ^sdl2.Event) -> (handled: bool, err: vi.Error)
 ProcFrameUpdate :: proc(control: ^Control, dt: f32) -> (err: vi.Error)
 ProcUpdateControlLayout :: proc(control: ^Control, available_area: vi.Rectf, update_x: bool = true, update_y: bool = true,
@@ -124,6 +125,7 @@ create_gui_root :: proc(ctx: ^vi.Context, default_font_path: string = DEFAULT_FO
   gui_root.vctx = ctx
 
   gui_root._delegates.determine_layout_extents = determine_layout_extents
+  gui_root._delegates.handle_gui_event = nil
   gui_root._delegates.render_control = nil
   gui_root._delegates.destroy_control = nil
   gui_root._delegates.update_control_layout = update_control_layout

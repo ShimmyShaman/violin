@@ -65,7 +65,11 @@ create_button :: proc(parent: ^Control, name_id: string = "Button") -> (button: 
   button.text = "Button"
   button.font = 0
   button.font_color = vi.COLOR_White
-  button.background_color = vi.COLOR_DarkSlateGray
+
+  button.background_color = { 0.1, 0.1, 0.1, 1.0 }
+  button.background_highlight_color = { 0.2, 0.14, 0.14, 1.0 }
+  button.background_pressed_color = { 0.2, 0.2, 0.27, 1.0 }
+  button.background_disabled_color = { 0.1, 0.1, 0.1, 0.5 }
   // button.clip_text_to_bounds = false
 
   set_control_requires_layout_update(auto_cast button)
@@ -83,7 +87,7 @@ create_button :: proc(parent: ^Control, name_id: string = "Button") -> (button: 
   // fmt.println("button: ", button.font, "&& button_font: ", button_font)
 
   if button.background_color.a > 0.0 {
-    vi.stamp_colored_rect(rctx, stamprr, &button.bounds, &button.background_color) or_return
+    vi.stamp_colored_rect(rctx, stamprr, &button.bounds, &button._state.background_draw_color) or_return
   }
 
   if button.text != "" && button.font_color.a > 0.0 {
@@ -132,10 +136,23 @@ create_button :: proc(parent: ^Control, name_id: string = "Button") -> (button: 
           }
           handled = mouse_is_over
       }
+    case .MOUSEBUTTONDOWN:
+      if button._state.visual_state == .Hover {
+        button._state.visual_state = .Pressed
+      }
+      handled = button._state.visual_state == .Pressed
+    case .MOUSEBUTTONUP:
+      if button._state.visual_state == .Pressed {
+        button._state.visual_state = .Hover
+      }
+      handled = button._state.visual_state == .Hover
+    case .KEYMAPCHANGED:
+      handled = false
     case:
       fmt.println("Warning Unhandled GUI Input Event: ", event.type, " for button: ", button.id)
   }
 
+  // fmt.println("Button: ", button.text, " handled: ", handled, " state: ", button._state.visual_state)
   // TODO MouseEnters, MouseLeaves
 
   handled = true
@@ -146,13 +163,14 @@ create_button :: proc(parent: ^Control, name_id: string = "Button") -> (button: 
   button: ^Button = auto_cast control
 
   if button.disabled do button._state.visual_state = .Disabled
+  // fmt.println("Button: ", button.text, " state: ", button._state.visual_state)
   switch button._state.visual_state {
     case .Normal:
       button._state.background_draw_color = button.background_color
     case .Hover:
       button._state.background_draw_color = button.background_highlight_color
     case .Pressed:
-      button.background_color = button.background_pressed_color
+      button._state.background_draw_color = button.background_pressed_color
     case .Disabled:
       button._state.background_draw_color = button.background_disabled_color
   }
