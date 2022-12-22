@@ -21,7 +21,8 @@ update_gui :: proc(gui_root: ^GUIRoot) -> (err: vi.Error) {
   for i := len(gui_root.children) - 1; i >= 0; i -= 1 {
     child := gui_root.children[i]
     if child._delegates.frame_update != nil {
-      child._delegates.frame_update(child)
+      err = child._delegates.frame_update(child, 0.001)
+      if err != .Success do return
     }
   }
 
@@ -42,7 +43,7 @@ update_gui :: proc(gui_root: ^GUIRoot) -> (err: vi.Error) {
 set_control_requires_layout_update :: proc(control: ^Control) {
   control._layout.requires_layout_update = true
   if control.parent != nil {
-    set_control_requires_layout_update(control.parent)
+    set_control_requires_layout_update(auto_cast control.parent)
   }
 }
 

@@ -57,14 +57,18 @@ create_stack_container :: proc(parent: ^Control, name_id: string = "StackContain
   return
 }
 
-@(private) _frame_update_stack_container :: proc(control: ^Control, dt: f32) {
+@(private) _frame_update_stack_container :: proc(control: ^Control, dt: f32) -> (err: vi.Error) {
+  stack: ^StackContainer = auto_cast control
+
   // Update the children
-  for i := len(control.children) - 1; i >= 0; i -= 1 {
-    child := control.children[i]
+  for i := len(stack.children) - 1; i >= 0; i -= 1 {
+    child := stack.children[i]
     if child._delegates.frame_update != nil {
       child._delegates.frame_update(child, dt)
     }
   }
+
+  return
 }
 
 @(private) _determine_stack_container_extents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints) \

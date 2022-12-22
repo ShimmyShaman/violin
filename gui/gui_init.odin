@@ -9,10 +9,10 @@ import sdl2 "vendor:sdl2"
 
 import vi "violin:vsr"
 ProcHandleGUIEvent :: proc(control: ^Control, event: ^sdl2.Event) -> (handled: bool, err: vi.Error)
-ProcFrameUpdate :: proc(control: ^Control, dt: f32) -> vi.Error
+ProcFrameUpdate :: proc(control: ^Control, dt: f32) -> (err: vi.Error)
 ProcUpdateControlLayout :: proc(control: ^Control, available_area: vi.Rectf, update_x: bool = true, update_y: bool = true,
   update_width: bool = true, update_height: bool = true, update_children: bool = true)
-ProcDetermineControlExtents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints) -> vi.Error
+ProcDetermineControlExtents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints) -> (err: vi.Error)
 ProcRenderControl :: proc (using grc: ^GUIRenderContext, control: ^_ControlInfo) -> (err: vi.Error)
 ProcDestroyControl :: proc(ctx: ^vi.Context, control: ^Control)
 
