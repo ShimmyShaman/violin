@@ -10,50 +10,62 @@ import "core:time"
 
 FrameTime :: struct {
   _prev_fps_check: f32,
+  _nn_cache: [100]f32,
+  _nnidx: int,
 
   init_time: time.Time,
-  prev_frame_time: time.Time,
-  now: time.Time,
+  frame_time, previous_frame_time: time.Time,
   
-  min_fps, max_fps: int,
-  recent_frame_count, historical_frame_count: int,
+  min_frame, max_frame, running_avg, ninety_ninth: f32,
+  historical_frame_count: int,
   frame_elapsed, total_elapsed: f32,
 }
 
-init_frame_time :: proc(using frame_time: ^FrameTime) {
+init_frame_time :: proc(using ft: ^FrameTime) {
   init_time = time.now()
-  prev_frame_time = init_time
-  now = init_time
+  previous_frame_time = init_time
+  frame_time = init_time
 
-  min_fps = 10000000
-  max_fps = 0
+  running_avg = 0.016
 }
 
-frame_time_update :: proc(using frame_time: ^FrameTime) {
-  now = time.now()
-  frame_elapsed = auto_cast time.duration_seconds(time.diff(prev_frame_time, now))
+frame_time_update :: proc(using ft: ^FrameTime) {
+  previous_frame_time = frame_time
+  frame_time = time.now()
+
+  frame_elapsed = auto_cast time.duration_seconds(time.diff(previous_frame_time, frame_time))
   total_elapsed += frame_elapsed
-  prev_frame_time = now
 
-  // if now._nsec / 1000000000 > last {
-  //   last = auto_cast (now._nsec / 1000000000)
-  //   // fmt.println("cpy len(lnc.manifest.transfer.data):", len(lnc.manifest.transfer.data))
-  // }
+  min_frame = min(min_frame, frame_elapsed)
+  max_frame = max(max_frame, frame_elapsed)
 
-  if total_elapsed - _prev_fps_check >= 1.0 {
-    historical_frame_count += recent_frame_count
-    max_fps = max(max_fps, recent_frame_count)
-    min_fps = min(min_fps, recent_frame_count)
-    defer recent_frame_count = 0
+  running_avg = (running_avg * 99.0 + frame_elapsed) / 100.0
+  
+  _nn_cache[_nnidx] = frame_elapsed
+  _nnidx += 1
+  if _nnidx == 100 {
+    _nnidx = 0
 
-    @(static) mod := 0
-    if mod += 1; mod % 10 == 3 {
-      fmt.println("fps:", recent_frame_count)
-      // break loop
+    high, second_high: f32 = 0.0, 0.0
+    for i in 0..<100 {
+      if _nn_cache[i] > high {
+        second_high = high
+        high = _nn_cache[i]
+      } else if _nn_cache[i] > second_high {
+        second_high = _nn_cache[i]
+      }
     }
-    
-    _prev_fps_check = total_elapsed
-  }
 
-  recent_frame_count += 1
+    if historical_frame_count < 150 {
+      ninety_ninth = second_high
+      // fmt.printf("set ninety_ninth: %.5f\n", ninety_ninth)
+    } else {
+      factor := max(0.0, cast(f32) 0.01667 / running_avg) + 1.0
+      // fmt.printf("ninety_ninth: %.5f second_high: %.5f combined: %.5f factor: %f\n", ninety_ninth, second_high,
+      //   (ninety_ninth + second_high) / 2.0, factor)
+      ninety_ninth = (ninety_ninth + second_high * (factor - 1)) / factor
+    }
+  }
+  
+  historical_frame_count += 1
 }
