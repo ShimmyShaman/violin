@@ -1250,10 +1250,12 @@ _init_descriptor_pool :: proc(using ctx: ^Context) -> Error {
   return .Success
 }
 
-create_render_pass :: proc(using ctx: ^Context, config: RenderPassConfigFlags) -> (rh: RenderPassResourceHandle, err: Error) {
+create_render_pass :: proc(using ctx: ^Context, config: RenderPassConfigFlags, clear_color: Color = {0, 0.01, 0, 1}) ->
+    (rh: RenderPassResourceHandle, err: Error) {
   rh = auto_cast _create_resource(&ctx.resource_manager, .RenderPass) or_return
   rp: ^RenderPass = auto_cast get_resource(&ctx.resource_manager, auto_cast rh) or_return
   rp.config = config
+  rp.clear_color = clear_color
 
   has_depth_buffer := .HasDepthBuffer in config
   depth_buffer_format: vk.Format = .UNDEFINED

@@ -133,6 +133,7 @@ RenderPass :: struct {
   render_pass: vk.RenderPass, // TODO change to vk_handle
   framebuffers: []vk.Framebuffer,
   depth_buffer_rh: ResourceHandle,
+  clear_color: Color,
 }
 
 StampRenderResource :: struct {
