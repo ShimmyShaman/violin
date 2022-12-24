@@ -26,6 +26,7 @@ init_frame_time :: proc(using ft: ^FrameTime) {
   previous_frame_time = init_time
   frame_time = init_time
 
+  min_frame = 1.0
   running_avg = 0.016
 }
 
@@ -60,7 +61,8 @@ frame_time_update :: proc(using ft: ^FrameTime) {
       ninety_ninth = second_high
       // fmt.printf("set ninety_ninth: %.5f\n", ninety_ninth)
     } else {
-      factor := max(0.0, cast(f32) 0.01667 / running_avg) + 1.0
+      LONG_AVG_PERIOD: f32 = 1.0 / (60.0 /* fps */ * 10.0 /* seconds */)
+      factor := max(0.0, LONG_AVG_PERIOD / running_avg) + 1.0
       // fmt.printf("ninety_ninth: %.5f second_high: %.5f combined: %.5f factor: %f\n", ninety_ninth, second_high,
       //   (ninety_ninth + second_high) / 2.0, factor)
       ninety_ninth = (ninety_ninth + second_high * (factor - 1)) / factor
