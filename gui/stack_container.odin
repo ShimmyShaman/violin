@@ -96,6 +96,7 @@ create_stack_container :: proc(parent: ^Control, name_id: string = "StackContain
     for child in stack.children {
       if child._delegates.determine_layout_extents != nil {
         child._delegates.determine_layout_extents(gui_root, child, child_restraints)
+        fmt.println("Determine Extents: ", child.id, " ", child._layout.determined_width_extent, "x", child._layout.determined_height_extent)
 
         // Propagate to the stack_container
         if stack.orientation == .Horizontal {

@@ -21,7 +21,7 @@ ControlType :: enum {
   GUIRoot = 1,
   Label = 100,
   Button,
-  Textbox,
+  TextBox,
   StackContainer,
 }
 
@@ -104,7 +104,7 @@ Control :: struct #raw_union {
   root: GUIRoot,
   label: Label,
   // button: Button,
-  // textbox: Textbox,
+  // textbox: TextBox,
 }
 
 when ODIN_OS == .Windows {
