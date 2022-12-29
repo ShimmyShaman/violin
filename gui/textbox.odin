@@ -88,14 +88,12 @@ create_textbox :: proc(parent: ^Control, name_id: string = "TextBox") -> (textbo
 @(private) _handle_textbox_gui_event :: proc(control: ^Control, event: ^sdl2.Event) -> (handled: bool, err: vi.Error) {
   textbox: ^TextBox = auto_cast control
 
-  handled = false
-
-  // mouse_is_over := x >= button.bounds.x && x < button.bounds.x + button.bounds.width && y >= button.bounds.y &&
-  //       y < button.bounds.y + button.bounds.height
-  // x, y: f32 = auto_cast event.motion.x, auto_cast event.motion.y
-  mouse_is_over := is_mouse_over_control(&control.bounds)
-
-  if textbox._layout.focus
+  // Check
+  mouse_is_over := is_mouse_over_control(control)
+  has_focus := is_focused(control)
+  if !mouse_is_over && !has_focus {
+    return
+  }
 
   #partial switch event.type {
     case .KEYDOWN:
@@ -108,6 +106,7 @@ create_textbox :: proc(parent: ^Control, name_id: string = "TextBox") -> (textbo
         err = .NotYetImplemented
         return
         }
+    
     case:
       fmt.println("_handle_textbox_gui_event: Unhandled event type:", event.type)
       err = .NotYetImplemented

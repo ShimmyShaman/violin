@@ -167,12 +167,18 @@ get_control_path :: proc(control: ^Control) -> (path: string) {
 }
 
 is_mouse_over_control :: proc(control: ^Control) -> (is_over: bool) {
-  mx, my: c.int
-  
-  sdl2.GetMouseState(&mx, my)
+  cx, cy: c.int
+  sdl2.GetMouseState(&cx, &cy)
+  mx: f32 = auto_cast cx
+  my: f32 = auto_cast cy
 
   is_over = mx >= control.bounds.x && mx < control.bounds.x + control.bounds.width && my >= control.bounds.y &&
     my < control.bounds.y + control.bounds.height
+  return
+}
+
+is_focused :: proc(control: ^Control) -> (is_focused: bool) {
+  is_focused = control.parent != nil && control.parent.focused_child == control
   return
 }
 
@@ -193,16 +199,19 @@ focus_control :: proc(control: ^Control) -> (err: vi.Error) {
 
     // Set Child Focus
     if hpr.focused_child != nil {
-      if hpr.focused_child == hco do break // Rest of ancestor hierarchy already has focus set
-
-      // Get the focused descendants of the focused child
-      dfc: ^Control = hpr.focused_child
-      for dfc.focused_child != nil {
-        dfc = dfc.focused_child
+      // Remove focus on previous
+      if hpr.focused_child != hco {
+        // Get the focused descendant of the focused child
+        // -- then reset the whole sub-hierarchy to nil
+        dfc: ^Control = hpr.focused_child
+        for dfc.focused_child != nil {
+          dfc = dfc.focused_child
+        }
+        for dfc != auto_cast hpr {
+          dfc.focused_child = nil
+          dfc = auto_cast dfc.parent
+        }
       }
-      
-      // Unfocus the current focused child
-      return .NotYetImplemented
     }
     hpr.focused_child = hco
 
