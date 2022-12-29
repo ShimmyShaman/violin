@@ -155,7 +155,6 @@ create_button :: proc(parent: ^Control, name_id: string = "Button") -> (button: 
   // fmt.println("Button: ", button.text, " handled: ", handled, " state: ", button._state.visual_state)
   // TODO MouseEnters, MouseLeaves
 
-  handled = true
   return
 }
 

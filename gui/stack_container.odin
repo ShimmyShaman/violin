@@ -32,7 +32,7 @@ create_stack_container :: proc(parent: ^Control, name_id: string = "StackContain
   stack.id = name_id
   stack.visible = true
 
-  stack._delegates.handle_gui_event = _handle_gui_event_default_rect
+  stack._delegates.handle_gui_event = _handle_gui_event_container_default_rect
   stack._delegates.frame_update = _frame_update_stack_container
   stack._delegates.determine_layout_extents = _determine_stack_container_extents
   stack._delegates.update_control_layout = _update_stack_container_layout

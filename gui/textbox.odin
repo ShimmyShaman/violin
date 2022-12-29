@@ -90,6 +90,13 @@ create_textbox :: proc(parent: ^Control, name_id: string = "TextBox") -> (textbo
 
   handled = false
 
+  // mouse_is_over := x >= button.bounds.x && x < button.bounds.x + button.bounds.width && y >= button.bounds.y &&
+  //       y < button.bounds.y + button.bounds.height
+  // x, y: f32 = auto_cast event.motion.x, auto_cast event.motion.y
+  mouse_is_over := is_mouse_over_control(&control.bounds)
+
+  if textbox._layout.focus
+
   #partial switch event.type {
     case .KEYDOWN:
       #partial switch event.key.keysym.sym {

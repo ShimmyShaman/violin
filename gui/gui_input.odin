@@ -9,7 +9,7 @@ import "vendor:sdl2"
 
 import vi "violin:vsr"
 
-// GUIEventType :: enum {
+// GUIEventKind :: enum {
 //   None,
 //   MouseMove,
 //   MouseDown,
@@ -22,12 +22,30 @@ import vi "violin:vsr"
 //   KeyMapChanged,
 // }
 
+// GUIEventMouseMove :: struct {
+//   dx, dy: f32,
+// }
+
+// GUIEventMouseDown :: struct {
+//   button: sdl2.MouseButton,
+// }
+
+// GUIEventMouseUp :: struct {
+//   button: sdl2.MouseButton,
+// }
+
+// GUIEventDetail :: union {
+//   GUIEventMouseMove,
+// }
+
 // GUIEvent :: struct {
-//   type: GUIEventType,
+//   kind: GUIEventType,
+//   mx, my: f32,
+//   using _details: GUIEventDetail,
 // }
 
 handle_gui_event :: proc(control: ^GUIRoot, event: ^sdl2.Event) -> (handled: bool, err: vi.Error) {
-  
+
   // Propagate to children
   handled, err = _propagate_handle_gui_event_to_children(auto_cast control, event)
 
@@ -148,6 +166,16 @@ get_control_path :: proc(control: ^Control) -> (path: string) {
   return
 }
 
+is_mouse_over_control :: proc(control: ^Control) -> (is_over: bool) {
+  mx, my: c.int
+  
+  sdl2.GetMouseState(&mx, my)
+
+  is_over = mx >= control.bounds.x && mx < control.bounds.x + control.bounds.width && my >= control.bounds.y &&
+    my < control.bounds.y + control.bounds.height
+  return
+}
+
 focus_control :: proc(control: ^Control) -> (err: vi.Error) {
   // fmt.println("focus_control:", get_control_path(control))
 
@@ -164,6 +192,18 @@ focus_control :: proc(control: ^Control) -> (err: vi.Error) {
     hpr: ^_ContainerControlInfo = auto_cast hco.parent
 
     // Set Child Focus
+    if hpr.focused_child != nil {
+      if hpr.focused_child == hco do break // Rest of ancestor hierarchy already has focus set
+
+      // Get the focused descendants of the focused child
+      dfc: ^Control = hpr.focused_child
+      for dfc.focused_child != nil {
+        dfc = dfc.focused_child
+      }
+      
+      // Unfocus the current focused child
+      return .NotYetImplemented
+    }
     hpr.focused_child = hco
 
     // Update layout
