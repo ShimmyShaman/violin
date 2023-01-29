@@ -855,8 +855,9 @@ create_graphics_pipeline :: proc(ctx: ^Context, pipeline_config: ^PipelineCreate
   rasterizer.sType = .PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
   rasterizer.depthClampEnable = false;
   rasterizer.rasterizerDiscardEnable = false;
-  rasterizer.polygonMode = .FILL;
-  rasterizer.lineWidth = 1.0;
+  // rasterizer.polygonMode = .FILL;
+  rasterizer.polygonMode = pipeline_config.fill_mode
+  rasterizer.lineWidth = pipeline_config.line_width_extra + 1.0
   rasterizer.cullMode = pipeline_config.cull_mode
   rasterizer.frontFace = pipeline_config.front_face
   rasterizer.depthBiasEnable = false;

@@ -181,6 +181,10 @@ PipelineCreateConfig :: struct {
   fragment_shader_binary: []u8,
   cull_mode: vk.CullModeFlags,
   front_face: vk.FrontFace,
+  fill_mode: vk.PolygonMode,
+  // If using fill_mode == vk.PolygonMode.LINE, this is the modification of the width of the line in pixels
+  // -- eg. 1.0 is the standard width, line_width_extra = 1.5 will make the line 2.5 pixels wide (add not multiply)
+  line_width_extra: f32,
 }
 
 RenderProgramCreateInfo :: struct {
