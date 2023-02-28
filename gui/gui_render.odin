@@ -20,10 +20,10 @@ render_gui :: proc(using rctx: ^vi.RenderContext, stamprr: vi.StampRenderResourc
     stamprr = stamprr,
   }
 
-  // Update the layout of each child
+  // Render the gui tree
   if gui_root.children != nil {
     for child in gui_root.children {
-      child._delegates.render_control(&grc, child) or_return
+      if child.visible do child._delegates.render_control(&grc, child) or_return
     }
   }
 

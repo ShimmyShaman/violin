@@ -3,6 +3,7 @@ package graphics
 import "core:os"
 import "core:fmt"
 import "core:c/libc"
+import mx "core:math"
 import "core:mem"
 import "core:sync"
 
@@ -91,6 +92,7 @@ Texture :: struct {
   sampler_usage: ImageUsage,
   width: u32,
   height: u32,
+  mip_levels: u32,
   size:   vk.DeviceSize,
   // format: vk.Format,
   image: vk.Image,
@@ -616,7 +618,7 @@ _end_single_time_commands :: proc(ctx: ^Context) -> Error {
   return .Success
 }
 
-transition_image_layout :: proc(ctx: ^Context, image: vk.Image, format: vk.Format, old_layout: vk.ImageLayout,
+transition_image_layout :: proc(ctx: ^Context, image: vk.Image, format: vk.Format, mip_levels: u32, old_layout: vk.ImageLayout,
   new_layout: vk.ImageLayout) -> Error {
     
   _begin_single_time_commands(ctx) or_return
@@ -631,7 +633,7 @@ transition_image_layout :: proc(ctx: ^Context, image: vk.Image, format: vk.Forma
     subresourceRange = vk.ImageSubresourceRange {
       aspectMask = { .COLOR },
       baseMipLevel = 0,
-      levelCount = 1,
+      levelCount = mip_levels,
       baseArrayLayer = 0,
       layerCount = 1,
     },
@@ -664,11 +666,136 @@ transition_image_layout :: proc(ctx: ^Context, image: vk.Image, format: vk.Forma
   return .Success
 }
 
+@(private="file") _generate_mipmaps :: proc(ctx: ^Context, image: vk.Image, format: vk.Format, tex_width: u32, tex_height: u32,
+    mip_levels: u32) -> (err: Error) {
+  // Check if image format supports linear blitting
+  format_props: vk.FormatProperties
+  vk.GetPhysicalDeviceFormatProperties(ctx.physical_device, format, &format_props)
+  if .SAMPLED_IMAGE_FILTER_LINEAR not_in format_props.optimalTilingFeatures {
+    fmt.eprintln("ERROR _generate_mipmaps> texture image format does not support linear blitting!")
+    return .NotYetDetailed
+  }
+
+  _begin_single_time_commands(ctx) or_return
+
+  barrier := vk.ImageMemoryBarrier {
+    sType = .IMAGE_MEMORY_BARRIER,
+    image = image,
+    srcQueueFamilyIndex = vk.QUEUE_FAMILY_IGNORED,
+    dstQueueFamilyIndex = vk.QUEUE_FAMILY_IGNORED,
+    subresourceRange = vk.ImageSubresourceRange {
+      aspectMask = { .COLOR },
+      baseArrayLayer = 0,
+      layerCount = 1,
+      levelCount = 1,
+    },
+  }
+
+  mip_width: i32 = auto_cast tex_width
+  mip_height: i32 = auto_cast tex_height
+
+  for i: u32 = 1; i < mip_levels; i += 1 {
+    barrier.subresourceRange.baseMipLevel = i - 1
+    barrier.oldLayout = .TRANSFER_DST_OPTIMAL
+    barrier.newLayout = .TRANSFER_SRC_OPTIMAL
+    barrier.srcAccessMask = { .TRANSFER_WRITE }
+    barrier.dstAccessMask = { .TRANSFER_READ }
+
+    vk.CmdPipelineBarrier(ctx.st_command_buffer, { .TRANSFER }, { .TRANSFER }, {}, 0, nil, 0, nil, 1, &barrier)
+
+  //     VkImageBlit blit{};
+  //     blit.srcOffsets[0] = {0, 0, 0};
+  //     blit.srcOffsets[1] = {mipWidth, mipHeight, 1};
+  //     blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  //     blit.srcSubresource.mipLevel = i - 1;
+  //     blit.srcSubresource.baseArrayLayer = 0;
+  //     blit.srcSubresource.layerCount = 1;
+  //     blit.dstOffsets[0] = {0, 0, 0};
+  //     blit.dstOffsets[1] = { mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1 };
+  //     blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  //     blit.dstSubresource.mipLevel = i;
+  //     blit.dstSubresource.baseArrayLayer = 0;
+  //     blit.dstSubresource.layerCount = 1;
+    blit := vk.ImageBlit {
+      srcOffsets = [2]vk.Offset3D {
+        vk.Offset3D { x = 0, y = 0, z = 0 },
+        vk.Offset3D { x = mip_width, y = mip_height, z = 1 },
+      },
+      srcSubresource = vk.ImageSubresourceLayers {
+        aspectMask = { .COLOR },
+        mipLevel = i - 1,
+        baseArrayLayer = 0,
+        layerCount = 1,
+      },
+      dstOffsets = [2]vk.Offset3D {
+        vk.Offset3D { x = 0, y = 0, z = 0 },
+        vk.Offset3D { x = mip_width / 2 if mip_width > 1 else 1, y = mip_height / 2 if mip_height > 1 else 1, z = 1 },
+      },
+      dstSubresource = vk.ImageSubresourceLayers {
+        aspectMask = { .COLOR },
+        mipLevel = i,
+        baseArrayLayer = 0,
+        layerCount = 1,
+      },
+    }
+
+  //     vkCmdBlitImage(commandBuffer,
+  //         image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+  //         image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+  //         1, &blit,
+  //         VK_FILTER_LINEAR);
+    vk.CmdBlitImage(ctx.st_command_buffer, image, .TRANSFER_SRC_OPTIMAL, image, .TRANSFER_DST_OPTIMAL, 1, &blit, .LINEAR)
+
+  //     barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+  //     barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  //     barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+  //     barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    barrier.oldLayout = .TRANSFER_SRC_OPTIMAL
+    barrier.newLayout = .SHADER_READ_ONLY_OPTIMAL
+    barrier.srcAccessMask = { .TRANSFER_READ }
+    barrier.dstAccessMask = { .SHADER_READ }
+
+  //     vkCmdPipelineBarrier(commandBuffer,
+  //         VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+  //         0, nullptr,
+  //         0, nullptr,
+  //         1, &barrier);
+    vk.CmdPipelineBarrier(ctx.st_command_buffer, { .TRANSFER }, { .FRAGMENT_SHADER }, {}, 0, nil, 0, nil, 1, &barrier)
+
+  //     if (mipWidth > 1) mipWidth /= 2;
+  //     if (mipHeight > 1) mipHeight /= 2;
+    if mip_width > 1 { mip_width /= 2 }
+    if mip_height > 1 { mip_height /= 2 }
+  }
+
+  // barrier.subresourceRange.baseMipLevel = mipLevels - 1;
+  // barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  // barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  // barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+  // barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+  barrier.subresourceRange.baseMipLevel = mip_levels - 1
+  barrier.oldLayout = .TRANSFER_DST_OPTIMAL
+  barrier.newLayout = .SHADER_READ_ONLY_OPTIMAL
+  barrier.srcAccessMask = { .TRANSFER_WRITE }
+  barrier.dstAccessMask = { .SHADER_READ }
+
+  // vkCmdPipelineBarrier(commandBuffer,
+  //     VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+  //     0, nullptr,
+  //     0, nullptr,
+  //     1, &barrier);
+  vk.CmdPipelineBarrier(ctx.st_command_buffer, { .TRANSFER }, { .FRAGMENT_SHADER }, {}, 0, nil, 0, nil, 1, &barrier)
+
+  _end_single_time_commands(ctx) or_return
+  return
+}
+
 write_to_texture :: proc(using ctx: ^Context, dst: TextureResourceHandle, data: rawptr, size_in_bytes: int) -> Error {
   texture: ^Texture = auto_cast get_resource(&resource_manager, dst) or_return
 
   // Transition Image Layout
-  transition_image_layout(ctx, texture.image, texture.format, texture.current_layout, .TRANSFER_DST_OPTIMAL) or_return
+  transition_image_layout(ctx, texture.image, texture.format, texture.mip_levels, texture.current_layout,
+    .TRANSFER_DST_OPTIMAL) or_return
 
   // Get the created buffers memory properties
   mem_property_flags: vk.MemoryPropertyFlags
@@ -735,19 +862,28 @@ write_to_texture :: proc(using ctx: ^Context, dst: TextureResourceHandle, data: 
     _end_single_time_commands(ctx) or_return
   }
 
+  if texture.mip_levels > 1 {
+    _generate_mipmaps(ctx, texture.image, texture.format, texture.width, texture.height, texture.mip_levels) or_return
+  }
+
   // Transition Image Layout
   target_layout: vk.ImageLayout
   switch texture.intended_usage {
     case .ShaderReadOnly:
       target_layout = .SHADER_READ_ONLY_OPTIMAL
   }
-  transition_image_layout(ctx, texture.image, texture.format, .TRANSFER_DST_OPTIMAL, target_layout) or_return
+  transition_image_layout(ctx, texture.image, texture.format, texture.mip_levels, .TRANSFER_DST_OPTIMAL, target_layout) or_return
 
   return .Success
 }
 
 create_texture :: proc(using ctx: ^Context, tex_width: i32, tex_height: i32, tex_channels: i32,
-  image_usage: ImageUsage) -> (handle: TextureResourceHandle, err: Error) {
+    image_usage: ImageUsage, generate_mipmaps: bool = false) -> (handle: TextureResourceHandle, err: Error) {
+  // Mip Levels
+  mip_levels: u32 = 1
+  if generate_mipmaps do mip_levels = auto_cast mx.floor(mx.log2(cast(f32) mx.max(tex_width, tex_height))) + 1
+  // fmt.println("mip_levels:", mip_levels)
+  
   // Create the resource
   handle = auto_cast _create_resource(&resource_manager, .Texture) or_return
   texture: ^Texture = auto_cast get_resource(&resource_manager, handle) or_return
@@ -759,6 +895,7 @@ create_texture :: proc(using ctx: ^Context, tex_width: i32, tex_height: i32, tex
   texture.size = auto_cast (tex_width * tex_height * 4) // TODO
   texture.format = swap_chain.format.format
   texture.intended_usage = image_usage
+  texture.mip_levels = mip_levels
 
   // Create the image
   image_create_info := vk.ImageCreateInfo {
@@ -769,7 +906,7 @@ create_texture :: proc(using ctx: ^Context, tex_width: i32, tex_height: i32, tex
       height = auto_cast tex_height,
       depth = 1,
     },
-    mipLevels = 1,
+    mipLevels = mip_levels, 
     arrayLayers = 1,
     format = texture.format,
     tiling = .OPTIMAL,
@@ -778,7 +915,11 @@ create_texture :: proc(using ctx: ^Context, tex_width: i32, tex_height: i32, tex
   }
   switch image_usage {
     case .ShaderReadOnly:
-      image_create_info.usage = { .SAMPLED, .TRANSFER_DST }
+      if texture.mip_levels > 1 {
+        image_create_info.usage = { .TRANSFER_SRC, .TRANSFER_DST, .SAMPLED }
+      } else {
+        image_create_info.usage = { .TRANSFER_DST, .SAMPLED }
+      }
       texture.current_layout = .UNDEFINED
     // case .ColorAttachment:
     //   image_create_info.usage = { .COLOR_ATTACHMENT }
@@ -817,7 +958,7 @@ create_texture :: proc(using ctx: ^Context, tex_width: i32, tex_height: i32, tex
     subresourceRange = vk.ImageSubresourceRange {
       aspectMask = { .COLOR },
       baseMipLevel = 0,
-      levelCount = 1,
+      levelCount = mip_levels,
       baseArrayLayer = 0,
       layerCount = 1,
     },
@@ -959,6 +1100,9 @@ create_texture :: proc(using ctx: ^Context, tex_width: i32, tex_height: i32, tex
     compareEnable = false,
     compareOp = .ALWAYS,
     mipmapMode = .LINEAR,
+    minLod = 0.0,
+    maxLod = auto_cast mip_levels,
+    mipLodBias = 0.0,
   }
   vkres = vk.CreateSampler(ctx.device, &sampler_info, nil, &texture.sampler)
   if vkres != .SUCCESS {
@@ -1071,7 +1215,8 @@ STBI_rgb_alpha :: 4
  * @param ctx The Violin Context
  * @param filepath The path to the file to load
  */
-load_texture_from_file :: proc(using ctx: ^Context, filepath: cstring) -> (rh: TextureResourceHandle, err: Error) {
+load_texture_from_file :: proc(using ctx: ^Context, filepath: cstring, generate_mipmaps: bool = true) -> \
+    (rh: TextureResourceHandle, err: Error) {
   
   tex_width, tex_height, tex_channels: libc.int
   pixels := stbi.load(filepath, &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha)
@@ -1085,9 +1230,10 @@ load_texture_from_file :: proc(using ctx: ^Context, filepath: cstring) -> (rh: T
   image_size: int = auto_cast (tex_width * tex_height * STBI_rgb_alpha)
   // fmt.println("pixels:", pixels)
   // fmt.println("width:", tex_width, "height:", tex_height, "channels:", tex_channels, "image_size:", image_size)
+  // mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
 
-  rh = create_texture(ctx, tex_width, tex_height, tex_channels, .ShaderReadOnly) or_return
-  texture: ^Texture = auto_cast get_resource(&resource_manager, rh) or_return
+  rh = create_texture(ctx, tex_width, tex_height, tex_channels, .ShaderReadOnly, generate_mipmaps) or_return
+  // texture: ^Texture = auto_cast get_resource(&resource_manager, rh) or_return
 
   write_to_texture(ctx, rh, pixels, image_size) or_return
 
@@ -1505,9 +1651,9 @@ load_font :: proc(using ctx: ^Context, ttf_filepath: string, font_height: f32) -
   // Create the resource
   fh = auto_cast _create_resource(&resource_manager, .Font) or_return
   font: ^Font = auto_cast get_resource(&resource_manager, fh) or_return
-  font.texture = create_texture(ctx, tex_width, tex_height, tex_channels, .ShaderReadOnly) or_return
+  font.texture = create_texture(ctx, tex_width, tex_height, tex_channels, .ShaderReadOnly, true) or_return
   font.height = font_height
-  font.char_data = auto_cast mem.alloc(size=96 * size_of(stbtt.bakedchar), allocator = context.temp_allocator)
+  font.char_data = auto_cast mem.alloc(size=96*size_of(stbtt.bakedchar), allocator=context.temp_allocator)
 
 // const int texWidth = 256, texHeight = 256, texChannels = 4;
 // stbi_uc temp_bitmap[texWidth * texHeight];
