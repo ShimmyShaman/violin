@@ -27,7 +27,7 @@ update_gui :: proc(gui_root: ^GUIRoot) -> (err: vi.Error) {
   }
 
   if gui_root.requires_layout_update {
-    fmt.println("gui_root layout update")
+    // fmt.println("gui_root layout update")
     gui_root.requires_layout_update = false
     
     gui_root._delegates.determine_layout_extents(gui_root, auto_cast gui_root, {}) or_return

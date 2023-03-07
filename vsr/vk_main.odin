@@ -793,7 +793,9 @@ create_swap_chain_image_views :: proc(using ctx: ^Context) -> Error {
 }
 
 create_graphics_pipeline :: proc(ctx: ^Context, pipeline_config: ^PipelineCreateConfig, vertex_binding_desc: ^vk.VertexInputBindingDescription,
-  vertex_attributes: []vk.VertexInputAttributeDescription, descriptor_layout: [^]vk.DescriptorSetLayout) -> (pipeline: Pipeline, err: Error) {
+  vertex_attributes: []vk.VertexInputAttributeDescription, descriptor_layout: [^]vk.DescriptorSetLayout,
+  caller := #caller_location) -> (pipeline: Pipeline, err: Error) {
+
   // Create the Shaders
   vs_shader := create_shader_module(ctx, pipeline_config.vertex_shader_binary) or_return
   fs_shader := create_shader_module(ctx, pipeline_config.fragment_shader_binary) or_return
@@ -906,6 +908,7 @@ create_graphics_pipeline :: proc(ctx: ^Context, pipeline_config: ^PipelineCreate
   if res := vk.CreatePipelineLayout(ctx.device, &pipeline_layout_info, nil, &pipeline.layout); res != .SUCCESS
   {
     fmt.eprintf("Error: Failed to create pipeline layout!\n");
+    fmt.eprintf("--Caller:", caller)
     err = .NotYetDetailed
     return
   }
@@ -939,7 +942,16 @@ create_graphics_pipeline :: proc(ctx: ^Context, pipeline_config: ^PipelineCreate
     basePipelineIndex = -1,
   }
 
-  render_pass: ^RenderPass = auto_cast get_resource(&ctx.resource_manager, pipeline_config.render_pass) or_return
+  p_render_pass: rawptr
+  p_render_pass, err = get_resource(&ctx.resource_manager, pipeline_config.render_pass)
+  if err != .Success {
+    fmt.eprintf("Error: Failed to get render pass!\n")
+    fmt.eprintf("--Caller:", caller)
+    err = .NotYetDetailed
+    return
+  }
+
+  render_pass: ^RenderPass = auto_cast p_render_pass
   pipeline_info.renderPass = render_pass.render_pass
   if .HasDepthBuffer in render_pass.config {
     pipeline_info.pDepthStencilState = &depth_stencil_create_info

@@ -14,9 +14,9 @@ FrameTime :: struct {
   _nnidx: int,
 
   init_time: time.Time,
-  frame_time, previous_frame_time: time.Time,
+  frame_time, previous_frame_time, _max5s_frame_time: time.Time,
   
-  min_frame, max_frame, running_avg, ninety_ninth: f32,
+  min_frame, max_frame, running_avg, max5s_frame, ninety_ninth: f32,
   historical_frame_count: int,
   frame_elapsed, total_elapsed: f32,
 }
@@ -38,7 +38,14 @@ frame_time_update :: proc(using ft: ^FrameTime) {
   total_elapsed += frame_elapsed
 
   min_frame = min(min_frame, frame_elapsed)
-  max_frame = max(max_frame, frame_elapsed)
+  if frame_elapsed > max5s_frame {
+    max5s_frame = frame_elapsed
+    _max5s_frame_time = time.now()
+    max_frame = max(max_frame, frame_elapsed)
+  } else if time.diff(_max5s_frame_time, frame_time) > time.Second * 5 {
+    max5s_frame = frame_elapsed
+    _max5s_frame_time = time.now()
+  }
 
   running_avg = (running_avg * 99.0 + frame_elapsed) / 100.0
   
