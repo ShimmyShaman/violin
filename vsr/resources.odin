@@ -267,7 +267,13 @@ _create_resource :: proc(using rm: ^ResourceManager, resource_kind: ResourceKind
          .Font:
       rh = resource_index
       resource_index += 1
-      res: ^Resource = auto_cast mem.alloc(size_of(Resource))
+      mrp, maerr := mem.alloc(size_of(Resource))
+      if maerr != .None {
+        fmt.eprintln("Error: Cannot create resource of kind:", resource_kind, "allocator error:", maerr)
+        err = .AllocationFailed
+        return
+      }
+      res: ^Resource = auto_cast mrp
       resource_map[rh] = res
       res.kind = resource_kind
       when RESOURCES_DEBUG_VERBOSE_FLAG do fmt.println("Created resource: ", rh)
@@ -1209,6 +1215,34 @@ STBI_grey_alpha :: 2
 STBI_rgb :: 3
 STBI_rgb_alpha :: 4
 
+load_texture_from_memory :: proc(using ctx: ^Context, buffer: [^]byte, buffer_len: int, generate_mipmaps: bool = true) -> \
+      (rh: TextureResourceHandle, err: Error) {
+    
+    tex_width, tex_height, tex_channels: libc.int
+    pixels := stbi.load_from_memory(buffer, auto_cast buffer_len, &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha)
+    defer stbi.image_free(pixels)
+    if pixels == nil {
+      err = .NotYetDetailed
+      fmt.eprintln("Violin.load_texture_from_file: Failed to load image from memory, len=", buffer_len)
+      return
+    }
+  
+    image_size: int = auto_cast (tex_width * tex_height * STBI_rgb_alpha)
+    // fmt.println("pixels:", pixels)
+    // fmt.println("width:", tex_width, "height:", tex_height, "channels:", tex_channels, "image_size:", image_size)
+    // mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+  
+    rh = create_texture(ctx, tex_width, tex_height, tex_channels, .ShaderReadOnly, generate_mipmaps) or_return
+    // texture: ^Texture = auto_cast get_resource(&resource_manager, rh) or_return
+  
+    write_to_texture(ctx, rh, pixels, image_size) or_return
+  
+    // fmt.printf("loaded %s> width:%i height:%i channels:%i\n", filepath, tex_width, tex_height, tex_channels);
+  
+    return
+  }
+  
+
 /* Loads a texture from a file for use as an image sampler in a shader.
  * The texture is loaded into a staging buffer, then copied to a device local
  * buffer. The staging buffer is then freed.
@@ -1254,7 +1288,7 @@ create_uniform_buffer :: proc(using ctx: ^Context, size_in_bytes: vk.DeviceSize,
       }
 
       allocation_create_info := vma.AllocationCreateInfo {
-        usage = .AUTO,
+        usage = .CPU_TO_GPU, // TODO -- Donno why AUTO isn't working
         flags = {.HOST_ACCESS_SEQUENTIAL_WRITE, .HOST_ACCESS_ALLOW_TRANSFER_INSTEAD, .MAPPED},
       }
       
@@ -1267,6 +1301,9 @@ create_uniform_buffer :: proc(using ctx: ^Context, size_in_bytes: vk.DeviceSize,
         fmt.eprintln("create_uniform_buffer>vmaCreateBuffer failed:", vkres)
         err = .NotYetDetailed
       }
+      mem_property_flags: vk.MemoryPropertyFlags
+      vma.GetAllocationMemoryProperties(vma_allocator, buffer.allocation, &mem_property_flags)
+      // fmt.println("Buffer Created for", intended_usage, "mem_property_flags:", mem_property_flags)
     case:
       fmt.eprintln("create_uniform_buffer() > Unsupported buffer usage:", intended_usage)
       err = .NotYetDetailed
@@ -1277,7 +1314,8 @@ create_uniform_buffer :: proc(using ctx: ^Context, size_in_bytes: vk.DeviceSize,
 
 // TODO -- allow/disable staging - test performance
 // TODO -- single-use-commands within processing of render command buffers. whats the deal
-write_to_buffer :: proc(using ctx: ^Context, rh: ResourceHandle, data: rawptr, size_in_bytes: int) -> Error {
+write_to_buffer :: proc(using ctx: ^Context, rh: ResourceHandle, data: rawptr, size_in_bytes: int,
+    write_offset: int = 0) -> Error {
   buffer: ^Buffer = auto_cast get_resource(&resource_manager, rh) or_return
 
   // Get the created buffers memory properties
@@ -1653,7 +1691,13 @@ load_font :: proc(using ctx: ^Context, ttf_filepath: string, font_height: f32) -
   font: ^Font = auto_cast get_resource(&resource_manager, fh) or_return
   font.texture = create_texture(ctx, tex_width, tex_height, tex_channels, .ShaderReadOnly, true) or_return
   font.height = font_height
-  font.char_data = auto_cast mem.alloc(size=96*size_of(stbtt.bakedchar), allocator=context.temp_allocator)
+  mrp, maerr := mem.alloc(size=96*size_of(stbtt.bakedchar), allocator=context.temp_allocator)
+  if maerr != .None {
+    fmt.eprintln("Error: Cannot create font resource. Allocator error:", maerr)
+    err = .AllocationFailed
+    return
+  }
+  font.char_data = auto_cast mrp
 
 // const int texWidth = 256, texHeight = 256, texChannels = 4;
 // stbi_uc temp_bitmap[texWidth * texHeight];
@@ -1663,7 +1707,13 @@ load_font :: proc(using ctx: ^Context, ttf_filepath: string, font_height: f32) -
   tex_width :: 256
   tex_height :: 256
   tex_channels :: 4
-  temp_bitmap: [^]u8 = auto_cast mem.alloc(size=tex_width * tex_height, allocator = context.temp_allocator)
+  mrp, maerr = mem.alloc(size=tex_width * tex_height, allocator = context.temp_allocator)
+  if maerr != .None {
+    fmt.eprintln("Error: Cannot create temporary font bitmap. Allocator error:", maerr)
+    err = .AllocationFailed
+    return
+  }
+  temp_bitmap := cast([^]u8) mrp
   // defer free(temp_bitmap) // TODO -- no clue why this is causing segmentation fault. I've gotta be missing something right?
 
   stb_res := stbtt.BakeFontBitmap(&ttf_buffer[0], 0, font_height, temp_bitmap, tex_width, tex_height, 32, 96, font.char_data)
@@ -1770,8 +1820,11 @@ determine_text_display_dimensions :: proc(using ctx: ^Context, font: FontResourc
   q: stbtt.aligned_quad
 
   for c, i in text {
+    if i > len(text) do break // TODO -- basic language bug workaround?
+
     if c < auto_cast 32 || c > auto_cast 127 {
-      fmt.eprintln("ERROR: determine_text_display_dimensions> character '%i' not supported.\n", c)
+      fmt.eprintf("ERROR: determine_text_display_dimensions> character '%i' (%i char in '%s') not supported.\n", c, i, text)
+      fmt.println("text len:", len(text))
       continue
     }
 

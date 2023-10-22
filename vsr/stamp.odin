@@ -157,9 +157,9 @@ destroy_stamp_shaders :: proc(shaders: ^^StampShaders) {
   file_path: string
   aerr: mem.Allocator_Error
   if directory[len(directory) - 1] == '/' {
-    file_path, aerr = strings.join_safe({directory, filename}, "")
+    file_path, aerr = strings.join({directory, filename}, "")
   } else {
-    file_path, aerr = strings.join_safe({directory, filename}, "/")
+    file_path, aerr = strings.join({directory, filename}, "/")
   }
   if aerr != .None {
     err = .AllocationFailed
@@ -318,6 +318,8 @@ init_stamp_batch_renderer :: proc(using ctx: ^Context, shaders: ^StampShaders, r
     vma.GetAllocationMemoryProperties(vma_allocator, ubr.allocation, &mem_property_flags)
     if vk.MemoryPropertyFlag.HOST_VISIBLE not_in mem_property_flags {
       fmt.eprintln("init_stamp_batch_renderer>buffer memory is not HOST_VISIBLE. Invalid Call")
+      fmt.eprintln("mem_property_flags:", mem_property_flags)
+      fmt.eprintln("physicaldevice:", ctx.physical_device)
       err = .NotYetDetailed
       return
     }

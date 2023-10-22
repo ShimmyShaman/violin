@@ -260,12 +260,17 @@ deinit_vulkan :: proc(using ctx: ^Context) {
   destroy_instance(ctx)
 }
 
-set_vulkan_extensions :: proc(ctx: ^Context) {
+set_vulkan_extensions :: proc(ctx: ^Context) -> Error {
 
   extra_ext_count : u32 : 0
   sdl2.Vulkan_GetInstanceExtensions(ctx.window, &ctx.extensions_count, nil)
   if ctx.extensions_count + extra_ext_count > 0 {
-    ctx.extensions_names = cast([^]cstring)mem.alloc(cast(int)((ctx.extensions_count + extra_ext_count) * size_of(cstring)))
+    mrp, maerr := mem.alloc(cast(int)((ctx.extensions_count + extra_ext_count) * size_of(cstring)))
+    if maerr != .None {
+      fmt.eprintln("Error: Cannot create vk extensions array. Allocator error:", maerr)
+      return .AllocationFailed
+    }
+    ctx.extensions_names = cast([^]cstring) mrp
     sdl2.Vulkan_GetInstanceExtensions(ctx.window, &ctx.extensions_count, ctx.extensions_names);
   }
 
@@ -275,6 +280,7 @@ set_vulkan_extensions :: proc(ctx: ^Context) {
 
   // fmt.println("Vulkan extensions:")
   // for i in 0..<ctx.extensions_count do fmt.println("--extension: ", ctx.extensions_names[i])
+  return .Success
 }
 
 check_vulkan_layer_support :: proc(create_info: ^vk.InstanceCreateInfo) -> Error {
@@ -332,7 +338,7 @@ _create_instance :: proc(ctx: ^Context) -> Error {
     apiVersion = vk.API_VERSION_1_1,
   }
 
-  set_vulkan_extensions(ctx)
+  set_vulkan_extensions(ctx) or_return
   create_info := vk.InstanceCreateInfo {
     sType = .INSTANCE_CREATE_INFO,
     pApplicationInfo = &app_info,
@@ -388,7 +394,13 @@ _set_physical_device_queue_families :: proc(surface: vk.SurfaceKHR, physical_dev
   vk.GetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_count, raw_data(available_queues))
 
   // Iterate over each queue to discover if it supports presenting on the created surface
-  p_supports_present := cast([^]b32)mem.alloc(cast(int)(queue_count * size_of(b32)))
+  mrp, maerr := mem.alloc(cast(int)(queue_count * size_of(b32)))
+  if maerr != .None {
+    fmt.eprintln("Error: Cannot create presentation supports array. Allocator error:", maerr)
+    err = .AllocationFailed
+    return
+  }
+  p_supports_present := cast([^]b32) mrp
   defer mem.free(p_supports_present)
 
   for i in 0..<queue_count {
@@ -522,6 +534,7 @@ _create_surface_and_set_device :: proc(using ctx: ^Context) -> Error {
   hiscore := 0;
   for dev in devices {
     score := _determine_device_suitability(ctx, dev) or_return
+    fmt.println("Device:", score, "-", dev)
     if score > hiscore {
       physical_device = dev;
       hiscore = score;
