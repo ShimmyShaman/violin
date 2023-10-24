@@ -493,7 +493,7 @@ _determine_device_suitability :: proc(using ctx: ^Context, dev: vk.PhysicalDevic
   vk.GetPhysicalDeviceProperties(dev, &props);
   vk.GetPhysicalDeviceFeatures(dev, &features);
   // fmt.println("Device:\n--Props:\n", props, "\n--Features:\n", features)
-  fmt.println("Device:", cstring(&props.deviceName[0]), ":", props.deviceType, ":", props.apiVersion)
+  // fmt.println("Device:", cstring(&props.deviceName[0]), ":", props.deviceType, ":", props.apiVersion)
 
   if props.deviceType == .DISCRETE_GPU do score += 1000;
   score += cast(int)props.limits.maxImageDimension2D;
@@ -534,7 +534,6 @@ _create_surface_and_set_device :: proc(using ctx: ^Context) -> Error {
   hiscore := 0;
   for dev in devices {
     score := _determine_device_suitability(ctx, dev) or_return
-    fmt.println("Device:", score, "-", dev)
     if score > hiscore {
       physical_device = dev;
       hiscore = score;
@@ -543,6 +542,15 @@ _create_surface_and_set_device :: proc(using ctx: ^Context) -> Error {
   if (hiscore == 0) {
     fmt.eprintf("ERROR: Failed to find a suitable GPU\n");
     return .NotYetDetailed
+  }
+
+  {
+    props: vk.PhysicalDeviceProperties;
+    features: vk.PhysicalDeviceFeatures;
+    vk.GetPhysicalDeviceProperties(physical_device, &props);
+    vk.GetPhysicalDeviceFeatures(physical_device, &features);
+    // fmt.println("Device:\n--Props:\n", props, "\n--Features:\n", features)
+    fmt.println("Selected Device:", cstring(&props.deviceName[0]), ":", props.deviceType, ":", props.apiVersion)
   }
 
   return .Success
