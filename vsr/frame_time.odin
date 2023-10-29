@@ -14,6 +14,8 @@ FrameTime :: struct {
   _nnidx: int,
 
   init_time: time.Time,
+  // Duration since the app started
+  app_tick_count: time.Duration,
   frame_time, previous_frame_time, _max5s_frame_time: time.Time,
   
   min_frame, max_frame, running_avg, max5s_frame, ninety_ninth: f32,
@@ -34,6 +36,7 @@ frame_time_update :: proc(using ft: ^FrameTime) {
   previous_frame_time = frame_time
   frame_time = time.now()
 
+  app_tick_count = time.diff(init_time, frame_time)
   frame_elapsed = auto_cast time.duration_seconds(time.diff(previous_frame_time, frame_time))
   total_elapsed += frame_elapsed
 
