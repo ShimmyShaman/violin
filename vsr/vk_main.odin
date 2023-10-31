@@ -66,6 +66,8 @@ Context :: struct {
   in_flight_mutex: sync.Mutex,
   in_flight_index: u32,
   _render_contexts: [MAX_FRAMES_IN_FLIGHT]RenderContext,
+
+  default_clear_color: Color,
 }
 
 Swapchain :: struct {
@@ -153,6 +155,7 @@ init :: proc(#any_int window_width: int = 960, #any_int window_height: int = 600
 
   ctx = new(Context)
   ctx.__settings.support_negative_viewport_heights = support_negative_viewport_heights
+  ctx.default_clear_color = COLOR_Black
 
   // Init
   result := auto_cast Init(INIT_VIDEO)
@@ -1284,12 +1287,12 @@ _init_descriptor_pool :: proc(using ctx: ^Context) -> Error {
   return .Success
 }
 
-create_render_pass :: proc(using ctx: ^Context, config: RenderPassConfigFlags, clear_color: Color = {0, 0.01, 0, 1}) ->
+create_render_pass :: proc(using ctx: ^Context, config: RenderPassConfigFlags) ->
     (rh: RenderPassResourceHandle, err: Error) {
   rh = auto_cast _create_resource(&ctx.resource_manager, .RenderPass) or_return
   rp: ^RenderPass = auto_cast get_resource(&ctx.resource_manager, auto_cast rh) or_return
   rp.config = config
-  rp.clear_color = clear_color
+  rp.clear_color = ctx.default_clear_color
 
   has_depth_buffer := .HasDepthBuffer in config
   depth_buffer_format: vk.Format = .UNDEFINED
