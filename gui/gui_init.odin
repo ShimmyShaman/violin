@@ -23,6 +23,7 @@ ControlType :: enum {
   Button,
   TextBox,
   StackContainer,
+  ExclusiveMax = 1000,
 }
 
 ControlProperties :: distinct bit_set[ControlProperty; u8]
@@ -176,7 +177,9 @@ destroy_gui :: proc(ctx: ^vi.Context, gui_root: ^^GUIRoot) {
   return
 }
 
-@(private) _add_control :: proc(parent: rawptr, control: ^_ControlInfo) -> (err: vi.Error) {
+// Used by Control Extensions to add children to a parent container
+// Do not use otherwise. TODO ? can't change parent dynamically? Doesn't sound right. TODO
+_add_control :: proc(parent: rawptr, control: ^_ControlInfo) -> (err: vi.Error) {
   // Obtain the gui root
   gui_root: ^GUIRoot = _get_gui_root(parent) or_return
 
