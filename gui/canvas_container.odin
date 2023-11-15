@@ -64,35 +64,34 @@ create_canvas_container :: proc(parent: ^Control, name_id: string = "CanvasConta
 
 // Placeholder for determining layout extents for the CanvasContainer
 @(private) _determine_canvas_container_extents :: proc(gui_root: ^GUIRoot, control: ^Control, restraints: LayoutExtentRestraints) -> (err: vi.Error) {
-    canvas: ^CanvasContainer = auto_cast control
-  
-    // Initialize variables to hold the calculated extents
-    canvas._children_extents = {0, 0}
-  
-    if canvas.children != nil {
-      // Determine child extents
-      for child in canvas.children {
-        if child._delegates.determine_layout_extents != nil {
-          child._delegates.determine_layout_extents(gui_root, child, restraints)
-  
-          // Update canvas extents based on children
-          canvas._children_extents.x = max(canvas._children_extents.x, child._layout.determined_width_extent)
-          canvas._children_extents.y = max(canvas._children_extents.y, child._layout.determined_height_extent)
-        }
+  canvas: ^CanvasContainer = auto_cast control
+
+  // Initialize variables to hold the calculated extents
+  canvas._children_extents = {0, 0}
+
+  if canvas.children != nil {
+    // Determine child extents
+    for child in canvas.children {
+      if child._delegates.determine_layout_extents != nil {
+        child._delegates.determine_layout_extents(gui_root, child, restraints)
+
+        // Update canvas extents based on children
+        canvas._children_extents.x = max(canvas._children_extents.x, child._layout.determined_width_extent)
+        canvas._children_extents.y = max(canvas._children_extents.y, child._layout.determined_height_extent)
       }
     }
-  
-    // Calculate container extents based on children's sizes
-    container_width := canvas._children_extents.x + 2 * canvas._layout.margin.x
-    container_height := canvas._children_extents.y + 2 * canvas._layout.margin.y
-  
-    // Set the determined extents for the CanvasContainer
-    canvas._layout.determined_width_extent = container_width
-    canvas._layout.determined_height_extent = container_height
-  
-    return
   }
-  
+
+  // Calculate container extents based on children's sizes
+  container_width := canvas._children_extents.x + 2 * canvas._layout.margin.x
+  container_height := canvas._children_extents.y + 2 * canvas._layout.margin.y
+
+  // Set the determined extents for the CanvasContainer
+  canvas._layout.determined_width_extent = container_width
+  canvas._layout.determined_height_extent = container_height
+
+  return
+}
 
 // Placeholder for updating layout for the CanvasContainer
 @(private) _update_canvas_container_layout :: proc(control: ^Control, available_area: vi.Rectf, update_x: bool = true, update_y: bool = true, update_width: bool = true, update_height: bool = true, update_children: bool = true) {
