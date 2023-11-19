@@ -932,7 +932,7 @@ create_graphics_pipeline :: proc(ctx: ^Context, pipeline_config: ^PipelineCreate
   if res := vk.CreatePipelineLayout(ctx.device, &pipeline_layout_info, nil, &pipeline.layout); res != .SUCCESS
   {
     fmt.eprintf("Error: Failed to create pipeline layout!\n");
-    fmt.eprintf("--Caller:", caller)
+    fmt.eprintln("--Caller:", caller)
     err = .NotYetDetailed
     return
   }
@@ -969,8 +969,8 @@ create_graphics_pipeline :: proc(ctx: ^Context, pipeline_config: ^PipelineCreate
   p_render_pass: rawptr
   p_render_pass, err = get_resource(&ctx.resource_manager, pipeline_config.render_pass)
   if err != .Success {
-    fmt.eprintf("Error: Failed to get render pass!\n")
-    fmt.eprintf("--Caller:", caller)
+    fmt.eprintf("Error: Failed to get render pass specified in pipeline config!\n")
+    fmt.eprintln("--Caller:", caller)
     err = .NotYetDetailed
     return
   }

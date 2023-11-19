@@ -1557,7 +1557,8 @@ create_index_buffer :: proc(using ctx: ^Context, indices: ^u16, index_count: int
   
 //   vk.BindBufferMemory(device, buffer.buffer, buffer.ttmemory, 0);
 // }
-create_render_program :: proc(ctx: ^Context, info: ^RenderProgramCreateInfo) -> (rp_rh: RenderProgramResourceHandle, err: Error) {
+create_render_program :: proc(ctx: ^Context, info: ^RenderProgramCreateInfo, caller := #caller_location) -> (
+  rp_rh: RenderProgramResourceHandle, err: Error) {
   MAX_INPUT :: 16
   err = .Success
 
@@ -1608,8 +1609,14 @@ create_render_program :: proc(ctx: ^Context, info: ^RenderProgramCreateInfo) -> 
   }
 
   // Pipeline
-  rp.pipeline = create_graphics_pipeline(ctx, &info.pipeline_config, &vertex_binding, vertex_attributes[:vertex_attributes_count],
-    &rp.descriptor_layout) or_return
+  rp.pipeline, err = create_graphics_pipeline(ctx, &info.pipeline_config, &vertex_binding, vertex_attributes[:vertex_attributes_count],
+    &rp.descriptor_layout)
+  if err != .Success {
+    fmt.eprintln("Failed to create graphics pipeline")
+    fmt.eprintln("--Caller:", caller)
+    err = .NotYetDetailed
+    return
+  }
 
   // fmt.println("create_render_program return")
   return
