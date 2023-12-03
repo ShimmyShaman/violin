@@ -4,10 +4,13 @@ import "core:c/libc"
 import "core:fmt"
 import "core:mem"
 import "core:strings"
+import la "core:math/linalg"
 
 import sdl2 "vendor:sdl2"
 
 import vi "violin:vsr"
+
+vec2 :: la.Vector2f32
 
 ProcHandleGUIEvent :: proc(control: ^Control, event: ^sdl2.Event) -> (handled: bool, err: vi.Error)
 ProcFrameUpdate :: proc(control: ^Control, dt: f32) -> (err: vi.Error)
@@ -23,6 +26,7 @@ ControlType :: enum {
   Button,
   TextBox,
   StackContainer,
+  CanvasContainer,
   ExclusiveMax = 1000,
 }
 

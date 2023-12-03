@@ -6,8 +6,6 @@ import mem "core:mem"
 
 import vi "violin:vsr"
 
-vec2 :: la.Vector2f32
-
 CanvasContainer :: struct {
   using _confo: _ContainerControlInfo,
 
@@ -83,8 +81,8 @@ create_canvas_container :: proc(parent: ^Control, name_id: string = "CanvasConta
   }
 
   // Calculate container extents based on children's sizes
-  container_width := canvas._children_extents.x + 2 * canvas._layout.margin.x
-  container_height := canvas._children_extents.y + 2 * canvas._layout.margin.y
+  container_width := canvas._children_extents.x + 2 * canvas._layout.margin.left
+  container_height := canvas._children_extents.y + 2 * canvas._layout.margin.top
 
   // Set the determined extents for the CanvasContainer
   canvas._layout.determined_width_extent = container_width

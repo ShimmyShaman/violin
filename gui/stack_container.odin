@@ -6,8 +6,6 @@ import mem "core:mem"
 
 import vi "violin:vsr"
 
-vec2 :: la.Vector2f32
-
 StackOrientation :: enum {
   None = 0,
   Vertical,

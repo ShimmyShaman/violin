@@ -1686,6 +1686,9 @@ load_font :: proc(using ctx: ^Context, ttf_filepath: string, font_height: f32) -
   }
   defer delete(ttf_buffer)
 
+  tex_width :: 256
+  tex_height :: 256
+  
   // Create the resource
   fh = auto_cast _create_resource(&resource_manager, .Font) or_return
   font: ^Font = auto_cast get_resource(&resource_manager, fh) or_return
@@ -1704,8 +1707,6 @@ load_font :: proc(using ctx: ^Context, ttf_filepath: string, font_height: f32) -
 // stbtt_bakedchar *cdata = (stbtt_bakedchar *)malloc(sizeof(stbtt_bakedchar) * 96); // ASCII 32..126 is 95 glyphs
 // stbtt_BakeFontBitmap(ttf_buffer, 0, font_height, temp_bitmap, texWidth, texHeight, 32, 96,
 //   cdata); // no guarantee this fits!
-  tex_width :: 256
-  tex_height :: 256
   tex_channels :: 4
   mrp, maerr = mem.alloc(size=tex_width * tex_height, allocator = context.temp_allocator)
   if maerr != .None {
