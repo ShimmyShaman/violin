@@ -883,11 +883,24 @@ write_to_texture :: proc(using ctx: ^Context, dst: TextureResourceHandle, data: 
   return .Success
 }
 
+TextureCreateOptions :: struct {
+  image_usage: ImageUsage,
+  generate_mipmaps: bool,
+  addressModeU, addressModeV: vk.SamplerAddressMode,
+}
+
+DefaultTextureCreateOptions : TextureCreateOptions : TextureCreateOptions {
+  image_usage = .ShaderReadOnly,
+  generate_mipmaps = false,
+  addressModeU = .REPEAT,
+  addressModeV = .REPEAT,
+}
+
 create_texture :: proc(using ctx: ^Context, tex_width: i32, tex_height: i32, tex_channels: i32,
-    image_usage: ImageUsage, generate_mipmaps: bool = false) -> (handle: TextureResourceHandle, err: Error) {
+    create_options: TextureCreateOptions = DefaultTextureCreateOptions) -> (handle: TextureResourceHandle, err: Error) {
   // Mip Levels
   mip_levels: u32 = 1
-  if generate_mipmaps do mip_levels = auto_cast mx.floor(mx.log2(cast(f32) mx.max(tex_width, tex_height))) + 1
+  if create_options.generate_mipmaps do mip_levels = auto_cast mx.floor(mx.log2(cast(f32) mx.max(tex_width, tex_height))) + 1
   // fmt.println("mip_levels:", mip_levels)
   
   // Create the resource
@@ -895,12 +908,12 @@ create_texture :: proc(using ctx: ^Context, tex_width: i32, tex_height: i32, tex
   texture: ^Texture = auto_cast get_resource(&resource_manager, handle) or_return
   
   // image_sampler->resource_uid = p_vkrs->resource_uid_counter++; // TODO
-  texture.sampler_usage = image_usage
+  texture.sampler_usage = create_options.image_usage
   texture.width = auto_cast tex_width
   texture.height = auto_cast tex_height
   texture.size = auto_cast (tex_width * tex_height * 4) // TODO
   texture.format = swap_chain.format.format
-  texture.intended_usage = image_usage
+  texture.intended_usage = create_options.image_usage
   texture.mip_levels = mip_levels
 
   // Create the image
@@ -919,7 +932,7 @@ create_texture :: proc(using ctx: ^Context, tex_width: i32, tex_height: i32, tex
     initialLayout = .UNDEFINED,
     samples = {._1},
   }
-  switch image_usage {
+  switch create_options.image_usage {
     case .ShaderReadOnly:
       if texture.mip_levels > 1 {
         image_create_info.usage = { .TRANSFER_SRC, .TRANSFER_DST, .SAMPLED }
@@ -1096,8 +1109,8 @@ create_texture :: proc(using ctx: ^Context, tex_width: i32, tex_height: i32, tex
     sType = .SAMPLER_CREATE_INFO,
     magFilter = .LINEAR,
     minFilter = .LINEAR,
-    addressModeU = .REPEAT,
-    addressModeV = .REPEAT,
+    addressModeU = create_options.addressModeU,
+    addressModeV = create_options.addressModeV,
     addressModeW = .REPEAT,
     anisotropyEnable = false,
     // maxAnisotropy = 16.0,
@@ -1215,33 +1228,45 @@ STBI_grey_alpha :: 2
 STBI_rgb :: 3
 STBI_rgb_alpha :: 4
 
-load_texture_from_memory :: proc(using ctx: ^Context, buffer: [^]byte, buffer_len: int, generate_mipmaps: bool = true) -> \
-      (rh: TextureResourceHandle, err: Error) {
-    
-    tex_width, tex_height, tex_channels: libc.int
-    pixels := stbi.load_from_memory(buffer, auto_cast buffer_len, &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha)
-    defer stbi.image_free(pixels)
-    if pixels == nil {
-      err = .NotYetDetailed
-      fmt.eprintln("Violin.load_texture_from_file: Failed to load image from memory, len=", buffer_len)
-      return
-    }
-  
-    image_size: int = auto_cast (tex_width * tex_height * STBI_rgb_alpha)
-    // fmt.println("pixels:", pixels)
-    // fmt.println("width:", tex_width, "height:", tex_height, "channels:", tex_channels, "image_size:", image_size)
-    // mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
-  
-    rh = create_texture(ctx, tex_width, tex_height, tex_channels, .ShaderReadOnly, generate_mipmaps) or_return
-    // texture: ^Texture = auto_cast get_resource(&resource_manager, rh) or_return
-  
-    write_to_texture(ctx, rh, pixels, image_size) or_return
-  
-    // fmt.printf("loaded %s> width:%i height:%i channels:%i\n", filepath, tex_width, tex_height, tex_channels);
-  
-    return
+@(private)
+load_texture_from_memory_options :: proc(using ctx: ^Context, buffer: [^]byte, buffer_len: int,
+    texture_create_options: TextureCreateOptions) -> (rh: TextureResourceHandle, err: Error) {
+
+  tex_width, tex_height, tex_channels: libc.int
+  pixels := stbi.load_from_memory(buffer, auto_cast buffer_len, &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha)
+  defer stbi.image_free(pixels)
+  if pixels == nil {
+  err = .NotYetDetailed
+  fmt.eprintln("Violin.load_texture_from_file: Failed to load image from memory, len=", buffer_len)
+  return
   }
-  
+
+  image_size: int = auto_cast (tex_width * tex_height * STBI_rgb_alpha)
+  // fmt.println("pixels:", pixels)
+  // fmt.println("width:", tex_width, "height:", tex_height, "channels:", tex_channels, "image_size:", image_size)
+  // mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
+
+  rh = create_texture(ctx, tex_width, tex_height, tex_channels, texture_create_options) or_return
+  // texture: ^Texture = auto_cast get_resource(&resource_manager, rh) or_return
+
+  write_to_texture(ctx, rh, pixels, image_size) or_return
+
+  // fmt.printf("loaded %s> width:%i height:%i channels:%i\n", filepath, tex_width, tex_height, tex_channels);
+
+  return
+}
+
+@(private)
+load_texture_from_memory_default :: proc(using ctx: ^Context, buffer: [^]byte, buffer_len: int) -> \
+    (rh: TextureResourceHandle, err: Error) {
+    
+  return load_texture_from_memory(ctx, buffer, buffer_len, DefaultTextureCreateOptions)
+}   
+
+load_texture_from_memory :: proc {
+  load_texture_from_memory_options,
+  load_texture_from_memory_default,
+}
 
 /* Loads a texture from a file for use as an image sampler in a shader.
  * The texture is loaded into a staging buffer, then copied to a device local
@@ -1249,9 +1274,11 @@ load_texture_from_memory :: proc(using ctx: ^Context, buffer: [^]byte, buffer_le
  * @param ctx The Violin Context
  * @param filepath The path to the file to load
  */
-load_texture_from_file :: proc(using ctx: ^Context, filepath: cstring, generate_mipmaps: bool = true) -> \
-    (rh: TextureResourceHandle, err: Error) {
+@(private)
+load_texture_from_file_options :: proc(using ctx: ^Context, filepath: cstring,
+    texture_create_options: TextureCreateOptions) -> (rh: TextureResourceHandle, err: Error) {
   
+  // Load into memory
   tex_width, tex_height, tex_channels: libc.int
   pixels := stbi.load(filepath, &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha)
   defer stbi.image_free(pixels)
@@ -1266,7 +1293,7 @@ load_texture_from_file :: proc(using ctx: ^Context, filepath: cstring, generate_
   // fmt.println("width:", tex_width, "height:", tex_height, "channels:", tex_channels, "image_size:", image_size)
   // mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
 
-  rh = create_texture(ctx, tex_width, tex_height, tex_channels, .ShaderReadOnly, generate_mipmaps) or_return
+  rh = create_texture(ctx, tex_width, tex_height, tex_channels, DefaultTextureCreateOptions) or_return
   // texture: ^Texture = auto_cast get_resource(&resource_manager, rh) or_return
 
   write_to_texture(ctx, rh, pixels, image_size) or_return
@@ -1275,6 +1302,17 @@ load_texture_from_file :: proc(using ctx: ^Context, filepath: cstring, generate_
 
   return
 }
+
+@(private)
+load_texture_from_file_default :: proc(using ctx: ^Context, filepath: cstring) -> (rh: TextureResourceHandle, err: Error) {
+  return load_texture_from_file(ctx, filepath, DefaultTextureCreateOptions)
+}
+
+load_texture_from_file :: proc {
+  load_texture_from_file_options,
+  load_texture_from_file_default,
+}
+
 
 create_uniform_buffer :: proc(using ctx: ^Context, size_in_bytes: vk.DeviceSize, intended_usage: BufferUsage) -> (rh: ResourceHandle,
   err: Error) {
@@ -1696,7 +1734,7 @@ load_font :: proc(using ctx: ^Context, ttf_filepath: string, font_height: f32) -
   // Create the resource
   fh = auto_cast _create_resource(&resource_manager, .Font) or_return
   font: ^Font = auto_cast get_resource(&resource_manager, fh) or_return
-  font.texture = create_texture(ctx, tex_width, tex_height, tex_channels, .ShaderReadOnly, true) or_return
+  font.texture = create_texture(ctx, tex_width, tex_height, tex_channels) or_return
   font.height = font_height
   mrp, maerr := mem.alloc(size=96*size_of(stbtt.bakedchar), allocator=context.temp_allocator)
   if maerr != .None {
