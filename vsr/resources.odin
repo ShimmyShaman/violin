@@ -1293,7 +1293,7 @@ load_texture_from_file_options :: proc(using ctx: ^Context, filepath: cstring,
   // fmt.println("width:", tex_width, "height:", tex_height, "channels:", tex_channels, "image_size:", image_size)
   // mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
 
-  rh = create_texture(ctx, tex_width, tex_height, tex_channels, DefaultTextureCreateOptions) or_return
+  rh = create_texture(ctx, tex_width, tex_height, tex_channels, texture_create_options) or_return
   // texture: ^Texture = auto_cast get_resource(&resource_manager, rh) or_return
 
   write_to_texture(ctx, rh, pixels, image_size) or_return
